@@ -1,0 +1,8 @@
+playwright
+pandas
+plotly
+flask
+undetected-chromedriver
+selenium
+beautifulsoup4
+schedule
