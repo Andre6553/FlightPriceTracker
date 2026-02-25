@@ -21,7 +21,7 @@ call venv\Scripts\activate
 
 echo.
 echo Starting Background Dashboard Server...
-start /b python app.py > nul 2>&1
+start /b python local_server.py > nul 2>&1
 echo Dashboard is running at http://127.0.0.1:8080/calendar
 echo.
 
