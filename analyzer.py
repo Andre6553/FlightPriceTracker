@@ -909,7 +909,7 @@ def generate_dashboard(df, route_stats, output_dir,
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const SUPABASE_URL = "https://opiscawovakabjpmzwte.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waXNjYXdvdmFrc2JqcG16d3RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTIyNTEsImV4cCI6MjA4NzU4ODI1MX0.yEZ1A5WR0SIA24YuyBjFB6SlRPdq9FE2IzfWqj5cCGU";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waXNjYXdvdmFrYWJqcG16d3RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTIyNTEsImV4cCI6MjA4NzU4ODI1MX0.yEZ1A5WR0SIA24YuyBjFB6SlRPdq9FE2IzfWqj5cCGU";
         window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
     <style>
