@@ -1,0 +1,12 @@
+{
+    "framework": null,
+    "buildCommand": "echo 'Static build complete'",
+    "outputDirectory": ".",
+    "cleanUrls": true,
+    "rewrites": [
+        {
+            "source": "/",
+            "destination": "/dashboard.html"
+        }
+    ]
+}

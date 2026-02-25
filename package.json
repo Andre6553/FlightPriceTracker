@@ -1,0 +1,8 @@
+{
+    "name": "flight-price-tracker-frontend",
+    "version": "1.0.0",
+    "description": "Static frontend for FlySafair tracker",
+    "scripts": {
+        "build": "mkdir -p public && cp *.html public/ && cp -r static public/ 2>/dev/null || true"
+    }
+}
