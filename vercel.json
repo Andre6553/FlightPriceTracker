@@ -1,0 +1,16 @@
+{
+    "cleanUrls": true,
+    "builds": [
+        {
+            "src": "*.html",
+            "use": "@vercel/static"
+        }
+    ],
+    "rewrites": [
+        {
+            "source": "/",
+            "destination": "/dashboard.html"
+        }
+    ],
+    "ignoreCommand": "exit 0"
+}
