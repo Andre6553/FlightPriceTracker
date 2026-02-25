@@ -25,7 +25,7 @@ start /b python local_server.py > nul 2>&1
 echo Dashboard is running at http://127.0.0.1:8080/calendar
 echo.
 
-python main.py
+python run_scraper_loop.py
 
 REM Restore default sleep settings when scraper stops
 echo.
