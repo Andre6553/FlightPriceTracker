@@ -156,10 +156,29 @@ def run_analysis():
                 bgcolor="#24243e", bordercolor="#4fc3f7", font=dict(color="#e0e0e0", size=13)
             )]
         )
-        html_path = os.path.join(output_dir, "report_booking_window.html")
-        fig1.write_html(html_path)
-        inject_active_button_script(html_path)
-        print("  Saved -> report_booking_window.html")
+        # Instead of writing to disk, we return the HTML DIV
+        chart_booking_window = fig1.to_html(full_html=False, include_plotlyjs='cdn', post_script="""
+setInterval(function() {
+    document.querySelectorAll('g.updatemenu-button').forEach(function(btn) {
+        var rect = btn.querySelector('rect');
+        var text = btn.querySelector('text');
+        if (rect) {
+            var fill = rect.style.fill || rect.getAttribute('fill') || '';
+            if (!(fill && fill.includes('rgb(36, 36, 62)'))) {
+                rect.style.fill = '#e91e8c';
+                rect.setAttribute('fill', '#e91e8c');
+                if (text) {
+                    text.style.fill = '#ffffff';
+                    text.setAttribute('fill', '#ffffff');
+                }
+            }
+        }
+    });
+}, 50);
+""")
+        print("  Generated Chart -> Booking Window")
+    else:
+        chart_booking_window = "<div>No data available for booking window chart.</div>"
 
     # ===== REPORT 2: Day of Week to FLY =====
     print("\n" + "=" * 50)
@@ -215,10 +234,28 @@ def run_analysis():
                 bgcolor="#24243e", bordercolor="#4fc3f7", font=dict(color="#e0e0e0", size=13)
             )]
         )
-        html_path = os.path.join(output_dir, "report_day_fly.html")
-        fig2.write_html(html_path)
-        inject_active_button_script(html_path)
-        print("  Saved -> report_day_fly.html")
+        chart_day_fly = fig2.to_html(full_html=False, include_plotlyjs='cdn', post_script="""
+setInterval(function() {
+    document.querySelectorAll('g.updatemenu-button').forEach(function(btn) {
+        var rect = btn.querySelector('rect');
+        var text = btn.querySelector('text');
+        if (rect) {
+            var fill = rect.style.fill || rect.getAttribute('fill') || '';
+            if (!(fill && fill.includes('rgb(36, 36, 62)'))) {
+                rect.style.fill = '#e91e8c';
+                rect.setAttribute('fill', '#e91e8c');
+                if (text) {
+                    text.style.fill = '#ffffff';
+                    text.setAttribute('fill', '#ffffff');
+                }
+            }
+        }
+    });
+}, 50);
+""")
+        print("  Generated Chart -> Day Fly")
+    else:
+        chart_day_fly = "<div>No data available for flight day chart.</div>"
 
     # ===== REPORT 3: Hour of Day to BOOK =====
     print("\n" + "=" * 50)
@@ -274,12 +311,27 @@ def run_analysis():
                 bgcolor="#24243e", bordercolor="#4fc3f7", font=dict(color="#e0e0e0", size=13)
             )]
         )
-        html_path = os.path.join(output_dir, "report_hour_book.html")
-        fig3.write_html(html_path)
-        inject_active_button_script(html_path)
-        print("  Saved -> report_hour_book.html")
-    else:
-        print("  -> Need more hourly data (keep running scraper!)")
+        chart_hour_book = fig3.to_html(full_html=False, include_plotlyjs='cdn', post_script="""
+setInterval(function() {
+    document.querySelectorAll('g.updatemenu-button').forEach(function(btn) {
+        var rect = btn.querySelector('rect');
+        var text = btn.querySelector('text');
+        if (rect) {
+            var fill = rect.style.fill || rect.getAttribute('fill') || '';
+            if (!(fill && fill.includes('rgb(36, 36, 62)'))) {
+                rect.style.fill = '#e91e8c';
+                rect.setAttribute('fill', '#e91e8c');
+                if (text) {
+                    text.style.fill = '#ffffff';
+                    text.setAttribute('fill', '#ffffff');
+                }
+            }
+        }
+    });
+}, 50);
+""")
+        print("  Generated Chart -> Hour Book")
+        chart_hour_book = "<div>Need more hourly data for booking hour chart.</div>"
 
     # ===== REPORT 4: Day of Week to BOOK =====
     print("\n" + "=" * 50)
@@ -334,12 +386,27 @@ def run_analysis():
                 bgcolor="#24243e", bordercolor="#4fc3f7", font=dict(color="#e0e0e0", size=13)
             )]
         )
-        html_path = os.path.join(output_dir, "report_day_book.html")
-        fig4.write_html(html_path)
-        inject_active_button_script(html_path)
-        print("  Saved -> report_day_book.html")
-    else:
-        print("  -> Need more daily data (keep running scraper!)")
+        chart_day_book = fig4.to_html(full_html=False, include_plotlyjs='cdn', post_script="""
+setInterval(function() {
+    document.querySelectorAll('g.updatemenu-button').forEach(function(btn) {
+        var rect = btn.querySelector('rect');
+        var text = btn.querySelector('text');
+        if (rect) {
+            var fill = rect.style.fill || rect.getAttribute('fill') || '';
+            if (!(fill && fill.includes('rgb(36, 36, 62)'))) {
+                rect.style.fill = '#e91e8c';
+                rect.setAttribute('fill', '#e91e8c');
+                if (text) {
+                    text.style.fill = '#ffffff';
+                    text.setAttribute('fill', '#ffffff');
+                }
+            }
+        }
+    });
+}, 50);
+""")
+        print("  Generated Chart -> Day Book")
+        chart_day_book = "<div>Need more daily data for booking day chart.</div>"
 
     # ===== REPORT 5: Price by Route =====
     print("\n" + "=" * 50)
@@ -355,8 +422,8 @@ def run_analysis():
                   labels={'route': 'Route', 'price': 'Price (ZAR)'},
                   color='route')
     fig5.update_layout(template="plotly_dark", font=dict(family="Inter, sans-serif"))
-    fig5.write_html(os.path.join(output_dir, "report_routes.html"))
-    print("  Saved -> report_routes.html")
+    chart_routes = fig5.to_html(full_html=False, include_plotlyjs='cdn')
+    print("  Generated Chart -> Routes")
 
     # ===== REPORT 6: Heatmap (Day of Week vs Booking Period) =====
     print("\n" + "=" * 50)
@@ -470,24 +537,14 @@ def run_analysis():
                 )
             ]
         )
-        html_path = os.path.join(output_dir, "report_heatmap.html")
-        fig6.write_html(html_path)
-        
-        # Inject custom JS to force the active button to be pink
-        with open(html_path, "a", encoding="utf-8") as f:
-            f.write("""
-<script>
+        chart_heatmap = fig6.to_html(full_html=False, include_plotlyjs='cdn', post_script="""
 setInterval(function() {
     document.querySelectorAll('g.updatemenu-button').forEach(function(btn) {
         var rect = btn.querySelector('rect');
         var text = btn.querySelector('text');
         if (rect) {
             var fill = rect.style.fill || rect.getAttribute('fill') || '';
-            // Inactive is our dark bgcolor rgb(36, 36, 62), active is light assigned by Plotly
-            if (fill && fill.includes('rgb(36, 36, 62)')) {
-                // Do nothing, it is inactive
-            } else {
-                // Must be the active button, make it pink
+            if (!(fill && fill.includes('rgb(36, 36, 62)'))) {
                 rect.style.fill = '#e91e8c';
                 rect.setAttribute('fill', '#e91e8c');
                 if (text) {
@@ -498,9 +555,10 @@ setInterval(function() {
         }
     });
 }, 50);
-</script>
 """)
-        print("  Saved -> report_heatmap.html")
+        print("  Generated Chart -> Heatmap")
+    else:
+        chart_heatmap = "<div>No data available for heatmap.</div>"
 
     # ===== REPORT 7: Booking Window by Route =====
     print("\n" + "=" * 50)
@@ -512,12 +570,15 @@ setInterval(function() {
                    title='Average Price vs Days Before Flight (by Route)',
                    labels={'days_before_flight': 'Days Before Flight', 'price': 'Avg Price (ZAR)'})
     fig7.update_layout(template="plotly_dark", font=dict(family="Inter, sans-serif"))
-    fig7.write_html(os.path.join(output_dir, "report_booking_by_route.html"))
-    print("  Saved -> report_booking_by_route.html")
+    chart_booking_by_route = fig7.to_html(full_html=False, include_plotlyjs='cdn')
+    print("  Generated Chart -> Booking by Route")
 
     # ===== MASTER DASHBOARD =====
-    analyze_price_shifts(output_dir)
-    generate_dashboard(df, route_stats, output_dir)
+    chart_shifts = analyze_price_shifts(output_dir)
+    generate_dashboard(df, route_stats, output_dir, 
+                       chart_booking_window, chart_day_fly, chart_hour_book, 
+                       chart_day_book, chart_routes, chart_heatmap, 
+                       chart_booking_by_route, chart_shifts)
 
 def analyze_price_shifts(output_dir):
     """
@@ -615,8 +676,8 @@ def analyze_price_shifts(output_dir):
         xaxis=dict(autorange='reversed') # Reverse X axis so closer to flight is on the right
     )
     
-    fig8.write_html(os.path.join(output_dir, "report_price_shifts.html"))
-    print("  Saved -> report_price_shifts.html")
+    chart_shifts = fig8.to_html(full_html=False, include_plotlyjs='cdn')
+    print("  Generated Chart -> Price Shifts")
     
     # --- Print Aggregate Trends ---
     trend_summary = shifts_df.groupby(['route', 'shift_direction']).agg({
@@ -627,25 +688,28 @@ def analyze_price_shifts(output_dir):
     print("Average Price Shift Trends:")
     print(trend_summary)
     
+    # Export summary to a JSON file
+    trend_dict = {}
+    for route, direction in trend_summary.index:
+        if route not in trend_dict:
+            trend_dict[route] = {'total_shifts': 0, 'up_count': 0, 'down_count': 0, 'avg_days_before_up': None, 'avg_days_before_down': None}
+        
+        count = int(trend_summary.loc[(route, direction), ('price_diff', 'count')])
+        median_days = float(trend_summary.loc[(route, direction), ('days_before_shift', 'median')])
+        
+        trend_dict[route]['total_shifts'] += count
+        if direction == 'Up':
+            trend_dict[route]['up_count'] = count
+            trend_dict[route]['avg_days_before_up'] = median_days
+        else:
+            trend_dict[route]['down_count'] = count
+            trend_dict[route]['avg_days_before_down'] = median_days
+            
     # Export summary to a JSON file so the dashboard can read it easily
     import json
-    trend_dict = {}
-    for route in shifts_df['route'].unique():
-        route_df = shifts_df[shifts_df['route'] == route]
-        up_df = route_df[route_df['shift_direction'] == 'Up']
-        down_df = route_df[route_df['shift_direction'] == 'Down']
-        
-        trend_dict[route] = {
-            'total_shifts': len(route_df),
-            'up_count': len(up_df),
-            'down_count': len(down_df),
-            'avg_days_before_up': float(up_df['days_before_shift'].median()) if not up_df.empty else None,
-            'avg_days_before_down': float(down_df['days_before_shift'].median()) if not down_df.empty else None,
-        }
-        
     with open(os.path.join(output_dir, "price_trends.json"), "w") as f:
         json.dump(trend_dict, f)
-
+        
     # Export full shifts details for route detail modal
     detail_dict = {}
     for route in shifts_df['route'].unique():
@@ -690,8 +754,13 @@ def analyze_price_shifts(output_dir):
 
     with open(os.path.join(output_dir, "flight_summary.json"), "w") as f:
         json.dump(flight_summary, f)
+        
+    return chart_shifts
 
-def generate_dashboard(df, route_stats, output_dir):
+def generate_dashboard(df, route_stats, output_dir, 
+                       chart_booking_window, chart_day_fly, chart_hour_book, 
+                       chart_day_book, chart_routes, chart_heatmap, 
+                       chart_booking_by_route, chart_shifts):
     """Generate a single-page HTML dashboard with all insights."""
     avg_price = df['price'].mean()
     min_price = df['price'].min()
@@ -842,7 +911,7 @@ def generate_dashboard(df, route_stats, output_dir):
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const SUPABASE_URL = "https://opiscawovakabjpmzwte.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waXNjYXdvdmFrYWJqcG16d3RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTIyNTEsImV4cCI6MjA4NzU4ODI1MX0.yEZ1A5WR0SIA24YuyBjFB6SlRPdq9FE2IzfWqj5cCGU";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waXNjYXdvdmFrc2JqcG16d3RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTIyNTEsImV4cCI6MjA4NzU4ODI1MX0.yEZ1A5WR0SIA24YuyBjFB6SlRPdq9FE2IzfWqj5cCGU";
         window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     </script>
     <style>
@@ -954,14 +1023,10 @@ def generate_dashboard(df, route_stats, output_dir):
             cursor: pointer; transition: border-color 0.3s;
         }}
         .chart-card:hover {{ border-color: rgba(79,195,247,0.4); }}
-        .chart-card::after {{
-            content: '🔍 Double-click to expand';
-            display: block; text-align: center;
-            font-size: 0.7rem; color: #555; margin-top: 0.3rem;
-        }}
-        .chart-card iframe {{
-            width: 100%; height: 380px; border: none; border-radius: 8px;
-            pointer-events: auto;
+        /* Style for embedded plotly charts */
+        .chart-card .plotly-graph-div {{
+            border-radius: 8px;
+            overflow: hidden;
         }}
         .fullscreen-overlay {{
             display: none; position: fixed; top: 0; left: 0;
@@ -1098,18 +1163,12 @@ def generate_dashboard(df, route_stats, output_dir):
             .header h1 {{ font-size: 1.8rem; }}
             .advisor-bar {{ flex-direction: column; align-items: stretch; }}
             .advisor-bar label {{ text-align: center; }}
-            .chart-card iframe {{ height: 300px; }}
+            .chart-card .plotly-graph-div {{ height: 300px; }}
             .data-table th, .data-table td {{ font-size: 0.75rem; padding: 0.4rem; }}
         }}
     </style>
 </head>
 <body>
-    <!-- Fullscreen chart overlay -->
-    <div class="fullscreen-overlay" id="fullscreenOverlay">
-        <button class="fullscreen-close" onclick="closeFullscreen()">← Back to Dashboard</button>
-        <iframe id="fullscreenIframe" src=""></iframe>
-    </div>
-
     <!-- Price detail modal -->
     <div class="price-modal" id="priceModal" onclick="if(event.target===this)closePriceModal()">
         <div class="price-modal-content" id="priceModalContent">
@@ -1338,33 +1397,33 @@ def generate_dashboard(df, route_stats, output_dir):
     </div>
     
     <div class="charts">
-        <div class="chart-card" style="grid-column: span 2;"><iframe src="report_price_shifts.html"></iframe></div>
+        <div class="chart-card" style="grid-column: span 2;">{chart_shifts}</div>
     </div>
 """
     except Exception as e:
         print(f"Could not load price trends for dashboard: {e}")
 
     html += f"""
-    <h2 class="section-title">\U0001f4ca How Far in Advance Should You Book?</h2>
+    <h2 class="section-title">📊 How Far in Advance Should You Book?</h2>
     <div class="insights-grid">
-        <div class="chart-card"><iframe src="report_booking_window.html"></iframe></div>
+        <div class="chart-card">{chart_booking_window}</div>
         <div class="chart-card">
             {booking_section_html}
         </div>
     </div>
 
-    <h2 class="section-title">\u2708 When to Fly & When to Book</h2>
+    <h2 class="section-title">✈ When to Fly & When to Book</h2>
     <div class="charts">
-        <div class="chart-card"><iframe src="report_day_fly.html"></iframe></div>
-        <div class="chart-card"><iframe src="report_hour_book.html"></iframe></div>
-        <div class="chart-card"><iframe src="report_day_book.html"></iframe></div>
-        <div class="chart-card"><iframe src="report_booking_by_route.html"></iframe></div>
+        <div class="chart-card">{chart_day_fly}</div>
+        <div class="chart-card">{chart_hour_book}</div>
+        <div class="chart-card">{chart_day_book}</div>
+        <div class="chart-card">{chart_booking_by_route}</div>
     </div>
 
-    <h2 class="section-title">\U0001f5fa Route Analysis</h2>
+    <h2 class="section-title">🗺 Route Analysis</h2>
     <div class="charts">
-        <div class="chart-card"><iframe src="report_routes.html"></iframe></div>
-        <div class="chart-card"><iframe src="report_heatmap.html"></iframe></div>
+        <div class="chart-card">{chart_routes}</div>
+        <div class="chart-card">{chart_heatmap}</div>
     </div>
 
     <div class="chart-card" style="margin-top: 1.5rem;">
