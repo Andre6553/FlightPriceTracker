@@ -1043,8 +1043,9 @@ def generate_dashboard(df, route_stats, output_dir,
             margin-bottom: 0.8rem; transition: all 0.3s ease;
         }}
         .fullscreen-close:hover {{ transform: scale(1.05); box-shadow: 0 4px 20px rgba(233,30,140,0.4); }}
-        .fullscreen-overlay iframe {{
+        .fullscreen-overlay .fs-content {{
             flex: 1; width: 100%; border: none; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
         }}
         table {{ width: 100%; border-collapse: collapse; margin-top: 0.5rem; }}
         th, td {{ padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }}
@@ -1412,16 +1413,34 @@ def generate_dashboard(df, route_stats, output_dir,
 
     <h2 class="section-title">✈ When to Fly & When to Book</h2>
     <div class="charts">
-        <div class="chart-card">{chart_day_fly}</div>
-        <div class="chart-card">{chart_hour_book}</div>
-        <div class="chart-card">{chart_day_book}</div>
-        <div class="chart-card">{chart_booking_by_route}</div>
+        <div class="chart-card">
+            {chart_day_fly}
+            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
+        </div>
+        <div class="chart-card">
+            {chart_hour_book}
+            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
+        </div>
+        <div class="chart-card">
+            {chart_day_book}
+            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
+        </div>
+        <div class="chart-card">
+            {chart_booking_by_route}
+            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
+        </div>
     </div>
 
     <h2 class="section-title">🗺 Route Analysis</h2>
     <div class="charts">
-        <div class="chart-card">{chart_routes}</div>
-        <div class="chart-card">{chart_heatmap}</div>
+        <div class="chart-card">
+            {chart_routes}
+            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
+        </div>
+        <div class="chart-card">
+            {chart_heatmap}
+            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
+        </div>
     </div>
 
     <div class="chart-card" style="margin-top: 1.5rem;">
@@ -1461,6 +1480,39 @@ def generate_dashboard(df, route_stats, output_dir,
     </div>
 
     <p class="updated">Data last updated: {now_str} &bull; Dashboard refreshes after each scrape</p>
+
+    <!-- Price Detail Modal -->
+    <div id="priceModal" class="price-modal">
+        <div class="price-modal-content">
+            <div id="priceModalBody"></div>
+            <button class="price-modal-close" onclick="closePriceModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="infoModal" class="price-modal">
+        <div class="price-modal-content">
+            <h3>How are these calculated?</h3>
+            <div style="font-size: 0.9rem; line-height: 1.6; color: #ccc;">
+                <p><strong>Lowest Price Found:</strong> The absolute cheapest price we've ever seen for this route.</p>
+                <p style="margin-top:0.5rem;"><strong>Average Price:</strong> The mean price across all recorded checks.</p>
+                <p style="margin-top:0.5rem;"><strong>Best Booking Window:</strong> Calculated by finding which "days before flight" consistently yield the lowest costs.</p>
+                <p style="margin-top:0.5rem;"><strong>Best Hour/Day to Book:</strong> Identifies when prices are historically lowest based on the time YOU perform the check.</p>
+            </div>
+            <button class="price-modal-close" onclick="closeInfoModal()">Got it</button>
+        </div>
+    </div>
+
+    <!-- Fullscreen Chart Overlay -->
+    <div id="fullscreenOverlay" class="fullscreen-overlay">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 1rem;">
+            <h2 id="fsTitle" style="color: #4fc3f7; font-size: 1.2rem; margin: 0;">Chart View</h2>
+            <button class="fullscreen-close" onclick="closeFullscreen()">CLOSE FULLSCREEN</button>
+        </div>
+        <div id="fsContainer" class="fs-content" style="flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.02); border-radius: 16px; overflow: hidden; padding: 1rem;">
+            <!-- Chart cloned here -->
+        </div>
+    </div>
 
     <script>
         // Use Supabase client configured in HEAD
@@ -1665,12 +1717,25 @@ def generate_dashboard(df, route_stats, output_dir,
         // Fullscreen chart on double-click
         document.querySelectorAll('.chart-card').forEach(card => {{
             card.addEventListener('dblclick', () => {{
-                const iframe = card.querySelector('iframe');
-                if (iframe && iframe.src) {{
+                // Find the plotly div inside
+                const plotlyDiv = card.querySelector('.plotly-graph-div');
+                if (plotlyDiv) {{
                     const overlay = document.getElementById('fullscreenOverlay');
-                    const fsIframe = document.getElementById('fullscreenIframe');
-                    fsIframe.src = iframe.src;
+                    const fsContainer = document.getElementById('fsContainer');
+                    
+                    // Clone the div
+                    const clone = plotlyDiv.cloneNode(true);
+                    clone.style.width = '100%';
+                    clone.style.height = '100%';
+                    
+                    fsContainer.innerHTML = '';
+                    fsContainer.appendChild(clone);
                     overlay.classList.add('active');
+                    
+                    // Force a resize dispatch to make Plotly adjust to the new container size
+                    setTimeout(() => {{
+                        window.dispatchEvent(new Event('resize'));
+                    }}, 100);
                 }}
             }});
         }});
