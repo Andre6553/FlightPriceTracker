@@ -1025,7 +1025,46 @@ def generate_dashboard(df, route_stats, output_dir,
         .chart-card .plotly-graph-div {{
             border-radius: 8px;
             overflow: hidden;
+            flex: 1;
+            width: 100% !important;
+            height: 100% !important;
         }}
+        .chart-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }}
+        .chart-header h3 {{
+            font-size: 0.95rem;
+            color: #4fc3f7;
+            margin: 0;
+        }}
+        .chart-actions {{
+            display: flex;
+            gap: 8px;
+        }}
+        .action-btn {{
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #888;
+            border-radius: 4px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+        }}
+        .action-btn:hover {{
+            background: rgba(79, 195, 247, 0.2);
+            color: #4fc3f7;
+            border-color: #4fc3f7;
+        }}
+        .info-btn {{ color: #4fc3f7; }}
+        .expand-btn {{ color: #e91e8c; }}
         .fullscreen-overlay {{
             display: none; position: fixed; top: 0; left: 0;
             width: 100vw; height: 100vh; z-index: 9999;
@@ -1403,43 +1442,85 @@ def generate_dashboard(df, route_stats, output_dir,
         print(f"Could not load price trends for dashboard: {e}")
 
     html += f"""
-    <h2 class="section-title">📊 How Far in Advance Should You Book?</h2>
+    <h2 class="section-title">📊 How Far in Advance Should You Book? 
+        <span class="action-btn info-btn" onclick="showInfoModal()" style="display:inline-flex; vertical-align:middle; margin-left:8px; width:22px; height:22px; font-size:0.7rem;">i</span>
+    </h2>
     <div class="insights-grid">
-        <div class="chart-card">{chart_booking_window}</div>
+        <div class="chart-card" id="card_booking_window">
+            <div class="chart-header">
+                <h3>Optimal Booking Window</h3>
+                <div class="chart-actions">
+                    <button class="action-btn expand-btn" onclick="maximizeChart('card_booking_window')">⤢</button>
+                </div>
+            </div>
+            {chart_booking_window}
+        </div>
         <div class="chart-card">
             {booking_section_html}
         </div>
     </div>
 
-    <h2 class="section-title">✈ When to Fly & When to Book</h2>
+    <h2 class="section-title">✈ When to Fly & When to Book 
+        <span class="action-btn info-btn" onclick="showInfoModal()" style="display:inline-flex; vertical-align:middle; margin-left:8px; width:22px; height:22px; font-size:0.7rem;">i</span>
+    </h2>
     <div class="charts">
-        <div class="chart-card">
+        <div class="chart-card" id="card_day_fly">
+            <div class="chart-header">
+                <h3>Cheapest Day to Fly</h3>
+                <div class="chart-actions">
+                    <button class="action-btn expand-btn" onclick="maximizeChart('card_day_fly')">⤢</button>
+                </div>
+            </div>
             {chart_day_fly}
-            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
         </div>
-        <div class="chart-card">
+        <div class="chart-card" id="card_hour_book">
+            <div class="chart-header">
+                <h3>Best Hour to Book</h3>
+                <div class="chart-actions">
+                    <button class="action-btn expand-btn" onclick="maximizeChart('card_hour_book')">⤢</button>
+                </div>
+            </div>
             {chart_hour_book}
-            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
         </div>
-        <div class="chart-card">
+        <div class="chart-card" id="card_day_book">
+            <div class="chart-header">
+                <h3>Best Day to Book</h3>
+                <div class="chart-actions">
+                    <button class="action-btn expand-btn" onclick="maximizeChart('card_day_book')">⤢</button>
+                </div>
+            </div>
             {chart_day_book}
-            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
         </div>
-        <div class="chart-card">
+        <div class="chart-card" id="card_booking_by_route">
+            <div class="chart-header">
+                <h3>Booking Trends by Route</h3>
+                <div class="chart-actions">
+                    <button class="action-btn expand-btn" onclick="maximizeChart('card_booking_by_route')">⤢</button>
+                </div>
+            </div>
             {chart_booking_by_route}
-            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
         </div>
     </div>
 
     <h2 class="section-title">🗺 Route Analysis</h2>
     <div class="charts">
-        <div class="chart-card">
+        <div class="chart-card" id="card_routes">
+            <div class="chart-header">
+                <h3>Route Performance</h3>
+                <div class="chart-actions">
+                    <button class="action-btn expand-btn" onclick="maximizeChart('card_routes')">⤢</button>
+                </div>
+            </div>
             {chart_routes}
-            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
         </div>
-        <div class="chart-card">
+        <div class="chart-card" id="card_heatmap">
+            <div class="chart-header">
+                <h3>Price Heatmap</h3>
+                <div class="chart-actions">
+                    <button class="action-btn expand-btn" onclick="maximizeChart('card_heatmap')">⤢</button>
+                </div>
+            </div>
             {chart_heatmap}
-            <div style="font-size: 0.65rem; color: #666; text-align: right; margin-top: 0.5rem; letter-spacing: 0.5px;">💡 DOUBLE-CLICK TO MAXIMIZE</div>
         </div>
     </div>
 
@@ -1714,37 +1795,61 @@ def generate_dashboard(df, route_stats, output_dir,
             document.getElementById('infoModal').classList.remove('active');
         }}
 
-        // Fullscreen chart on double-click
-        document.querySelectorAll('.chart-card').forEach(card => {{
-            card.addEventListener('dblclick', () => {{
-                // Find the plotly div inside
-                const plotlyDiv = card.querySelector('.plotly-graph-div');
-                if (plotlyDiv) {{
-                    const overlay = document.getElementById('fullscreenOverlay');
-                    const fsContainer = document.getElementById('fsContainer');
-                    
-                    // Clone the div
-                    const clone = plotlyDiv.cloneNode(true);
-                    clone.style.width = '100%';
-                    clone.style.height = '100%';
-                    
-                    fsContainer.innerHTML = '';
-                    fsContainer.appendChild(clone);
-                    overlay.classList.add('active');
-                    
-                    // Force a resize dispatch to make Plotly adjust to the new container size
-                    setTimeout(() => {{
-                        window.dispatchEvent(new Event('resize'));
-                    }}, 100);
-                }}
-            }});
-        }});
+        // Fullscreen Logic: Move DOM node instead of cloning to preserve state/scaling
+        let originalParent = null;
+        let activeChartNode = null;
+
+        function maximizeChart(cardId) {{
+            const card = document.getElementById(cardId);
+            const plotlyDiv = card.querySelector('.plotly-graph-div');
+            if (plotlyDiv) {{
+                const overlay = document.getElementById('fullscreenOverlay');
+                const fsContainer = document.getElementById('fsContainer');
+                const fsTitle = document.getElementById('fsTitle');
+                
+                // Set title
+                fsTitle.textContent = card.querySelector('h3').textContent;
+                
+                // Store original location
+                originalParent = plotlyDiv.parentNode;
+                activeChartNode = plotlyDiv;
+                
+                // Move node
+                fsContainer.appendChild(plotlyDiv);
+                overlay.classList.add('active');
+                
+                // Force Plotly Resize
+                setTimeout(() => {{
+                    window.dispatchEvent(new Event('resize'));
+                }}, 50);
+            }}
+        }}
 
         function closeFullscreen() {{
             const overlay = document.getElementById('fullscreenOverlay');
+            const fsContainer = document.getElementById('fsContainer');
+            
+            if (activeChartNode && originalParent) {{
+                originalParent.appendChild(activeChartNode);
+            }}
+            
             overlay.classList.remove('active');
-            document.getElementById('fullscreenIframe').src = '';
+            activeChartNode = null;
+            originalParent = null;
+            
+            // Restore scale
+            setTimeout(() => {{
+                window.dispatchEvent(new Event('resize'));
+            }}, 50);
         }}
+
+        // Still support double-click on any card
+        document.querySelectorAll('.chart-card').forEach(card => {{
+            card.addEventListener('dblclick', () => {{
+                if (!card.id) return;
+                maximizeChart(card.id);
+            }});
+        }});
 
         document.addEventListener('keydown', (e) => {{
             if (e.key === 'Escape') closeFullscreen();
