@@ -839,6 +839,12 @@ def generate_dashboard(df, route_stats, output_dir):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FlySafair Price Tracker - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = "https://opiscawovakabjpmzwte.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waXNjYXdvdmFrYWJqcG16d3RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTIyNTEsImV4cCI6MjA4NzU4ODI1MX0.yEZ1A5WR0SIA24YuyBjFB6SlRPdq9FE2IzfWqj5cCGU";
+        window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
     <style>
         .route-tabs {{
             display: inline-flex;
@@ -1400,22 +1406,22 @@ def generate_dashboard(df, route_stats, output_dir):
     <p class="updated">Data last updated: {now_str} &bull; Dashboard refreshes after each scrape</p>
 
     <script>
-        // Auto-detect server URL for API calls
-        const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:8080' : '';
+        // Use Supabase client configured in HEAD
         const lastScrapeStr = "{now_iso}";
         const CHECK_INTERVAL_MS = 1.5 * 60 * 60 * 1000;
         const lastScrapeDate = new Date(lastScrapeStr);
         
-        // Align next check to the top of the next hour (e.g., 08:45 -> 09:00:00)
+        // Align next check to the top of the next hour
         let nextCheckDate = new Date(lastScrapeDate.getTime() + CHECK_INTERVAL_MS);
-        nextCheckDate.setMinutes(0, 0, 0); // Reset minutes, seconds, ms to zero
+        nextCheckDate.setMinutes(0, 0, 0);
         
         // If the calculation accidentally landed in the past or exactly now, push forward 1 hour
         if (nextCheckDate <= lastScrapeDate) {{
             nextCheckDate = new Date(nextCheckDate.getTime() + CHECK_INTERVAL_MS);
         }}
         
-        document.getElementById('calendarFrame').src = API_BASE + "/calendar";
+        // Use relative links for Vercel
+        document.getElementById('calendarFrame').src = "calendar.html";
 
         function pad(n) {{ return n.toString().padStart(2, '0'); }}
 
@@ -1438,51 +1444,12 @@ def generate_dashboard(df, route_stats, output_dir):
         updateTimers();
         setInterval(updateTimers, 1000);
 
-        // Check Now button / Status Polling
-        let wasRunning = false;
+        // Serverless Vercel deployment has no status endpoint
         async function pollStatus() {{
             const btn = document.getElementById('checkNowBtn');
-            
-            try {{
-                const res = await fetch(API_BASE + '/api/status');
-                const data = await res.json();
-                
-                if (data.running) {{
-                    btn.disabled = true;
-                    btn.innerHTML = '<span class="spinner">&#9203;</span> Checking Prices...';
-                    wasRunning = true;
-                }} else {{
-                    if (wasRunning) {{
-                        btn.innerHTML = 'Reloading Dashboard...';
-                        setTimeout(() => location.reload(), 2000);
-                        wasRunning = false;
-                    }} else {{
-                        btn.disabled = true;
-                        btn.innerHTML = '&#9203; Waiting for next cycle...';
-                    }}
-                }}
-                
-                if (data.next_run_iso) {{
-                    const serverNextCheck = new Date(data.next_run_iso);
-                    if (serverNextCheck.getTime() !== nextCheckDate.getTime()) {{
-                        nextCheckDate = serverNextCheck;
-                        updateTimers();
-                    }}
-                }}
-                
-                if (data.last_duration_seconds) {{
-                    document.getElementById('durationContainer').style.display = 'block';
-                    const d_mins = Math.floor(data.last_duration_seconds / 60);
-                    const d_secs = data.last_duration_seconds % 60;
-                    document.getElementById('scrapeDuration').textContent = d_mins + 'm ' + pad(d_secs) + 's';
-                }}
-            }} catch(e) {{
-                // Ignore network errors
-            }}
+            btn.innerHTML = '&#9203; Running on Vercel';
+            btn.disabled = true;
         }}
-        
-        // Poll every 5 seconds
-        setInterval(pollStatus, 5000);
         pollStatus();
 
         // Flight Date Advisor
@@ -1498,76 +1465,82 @@ def generate_dashboard(df, route_stats, output_dir):
             resultsDiv.innerHTML = '<div class="advisor-loading"><span class="spinner">⏳</span> Checking data for ' + selectedDate + '...</div>';
 
             try {{
-                const res = await fetch(API_BASE + '/api/flight-advice?date=' + selectedDate);
-                const data = await res.json();
+                // Supabase equivalent for flight advice
+                const {{ data, error }} = await window.supabaseClient
+                    .from('flight_prices')
+                    .select('route, price, scrape_datetime, days_before_flight')
+                    .eq('flight_date', selectedDate)
+                    .order('scrape_datetime');
+                    
+                if (error) throw error;
                 statusSpan.textContent = '';
-
-                if (data.error) {{
-                    resultsDiv.innerHTML = '<div class="advice-text">❌ ' + data.error + '</div>';
+                
+                if (!data || data.length === 0) {{
+                    resultsDiv.innerHTML = '<div class="advice-text">❌ No exact data for this date yet. Check back later!</div>';
                     return;
                 }}
+                
+                let route_prices = {{}};
+                data.forEach(r => {{
+                    if (!route_prices[r.route]) route_prices[r.route] = [];
+                    route_prices[r.route].push(r);
+                }});
+                
+                let routesInfo = [];
+                for (const route in route_prices) {{
+                    const entries = route_prices[route];
+                    const prices = entries.map(e => e.price);
+                    const latest = entries[entries.length - 1];
+                    const first = entries[0];
+                    let trend = "stable";
+                    if (prices.length > 1) {{
+                        if (latest.price < first.price) trend = "dropping";
+                        else if (latest.price > first.price) trend = "rising";
+                    }}
+                    routesInfo.push({{
+                        route: route,
+                        current_price: latest.price,
+                        lowest_seen: Math.min(...prices),
+                        highest_seen: Math.max(...prices),
+                        avg_price: Math.round(prices.reduce((a,b)=>a+b,0)/prices.length),
+                        checks: prices.length,
+                        trend: trend
+                    }});
+                }}
+                
+                // Extremely simple local booking advice 
+                const flightDate = new Date(selectedDate);
+                const day_of_week = flightDate.toLocaleString('default', {{ weekday: 'long' }});
+                const days_until = Math.floor((flightDate - new Date()) / (1000 * 60 * 60 * 24));
+                
+                let advice = "You have " + days_until + " days left.";
+                if (days_until > 30) advice += " Plenty of time. Watch for price drops.";
+                else if (days_until > 14) advice += " Good window to book soon.";
+                else if (days_until > 7) advice += " Prices usually start rising now. Book this week.";
+                else advice += " Book NOW for the best remaining price.";
 
                 let html = '<h3 style="color: #4fc3f7; margin-bottom: 0.8rem;">✈️ Flight Advice for ' +
-                    data.day_of_week + ', ' + data.date + '</h3>';
+                    day_of_week + ', ' + selectedDate + '</h3>';
                 html += '<div style="color: #aaa; margin-bottom: 0.8rem; font-size: 0.85rem;">' +
-                    (data.days_until >= 0 ? '📅 ' + data.days_until + ' days from now' : '⚠️ This date has passed') + '</div>';
-                html += '<div class="advice-text">💡 ' + data.advice + '</div>';
+                    (days_until >= 0 ? '📅 ' + days_until + ' days from now' : '⚠️ This date has passed') + '</div>';
+                html += '<div class="advice-text">💡 ' + advice + '</div>';
 
-                if (data.has_data && data.routes && data.routes.length > 0) {{
-                    html += '<h4 style="color: #e91e8c; margin: 1rem 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Current Prices for This Date</h4>';
-                    data.routes.forEach(r => {{
-                        const trendIcon = r.trend === 'dropping' ? '<span class="trend-down">▼ dropping</span>' :
-                                          r.trend === 'rising' ? '<span class="trend-up">▲ rising</span>' :
-                                          '<span class="trend-stable">─ stable</span>';
-                        const priceColor = r.current_price <= r.avg_price ? '#4caf50' : '#ff9800';
-                        html += '<div class="route-card">' +
-                            '<div><div class="route-name">' + r.route + '</div>' +
-                            '<div class="meta">Low: R' + r.lowest_seen.toLocaleString() + ' · High: R' + r.highest_seen.toLocaleString() + ' · ' + r.checks + ' checks · Trend: ' + trendIcon + '</div></div>' +
-                            '<div class="route-price" style="color:' + priceColor + '">R' + r.current_price.toLocaleString() + '</div></div>';
-                    }});
-                }} else if (data.similar_prices && data.similar_prices.length > 0) {{
-                    html += '<h4 style="color: #e91e8c; margin: 1rem 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Estimated Prices (based on similar booking windows)</h4>';
-                    data.similar_prices.forEach(r => {{
-                        html += '<div class="route-card">' +
-                            '<div><div class="route-name">' + r.route + '</div>' +
-                            '<div class="meta">Based on ' + r.samples + ' samples at similar advance booking</div></div>' +
-                            '<div class="route-price" style="color:#ff9800">~R' + r.avg_price.toLocaleString() + '</div></div>';
-                    }});
-                }} else {{
-                    html += '<div style="color: #888; padding: 0.5rem;">No price data collected for this date yet. Run more checks to gather data.</div>';
-                }}
-
-                // Per-route best booking day & hour
-                if (data.route_book_days && Object.keys(data.route_book_days).length > 0) {{
-                    html += '<h4 style="color: #e91e8c; margin: 1.2rem 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">📅 Best Day & Time to Book (Per Route)</h4>';
-
-                    if (data.unique_scrape_days <= 1) {{
-                        html += '<div style="color: #ff9800; font-size: 0.8rem; margin-bottom: 0.8rem; padding: 0.5rem; background: rgba(255,152,0,0.1); border-radius: 6px;">⚠️ Data collected from only ' + data.unique_scrape_days + ' day — these recommendations will improve over multiple days of checking.</div>';
-                    }}
-
-                    html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem;">';
-                    Object.keys(data.route_book_days).forEach(route => {{
-                        const bestDay = data.route_book_days[route][0];
-                        const bestHour = data.route_book_hours && data.route_book_hours[route] ? data.route_book_hours[route][0] : null;
-                        html += '<div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0.8rem;">' +
-                            '<div style="font-weight: 600; color: #4fc3f7; margin-bottom: 0.5rem; font-size: 0.9rem;">' + route + '</div>' +
-                            '<div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">' +
-                            '<span style="color: #4caf50; font-size: 0.8rem;">📅 Best Day</span>' +
-                            '<span style="font-weight: 700; color: #4caf50;">' + bestDay.day + '</span></div>';
-                        if (bestHour) {{
-                            html += '<div style="display: flex; justify-content: space-between;">' +
-                                '<span style="color: #e91e8c; font-size: 0.8rem;">⏰ Best Time</span>' +
-                                '<span style="font-weight: 700; color: #e91e8c;">' + bestHour.hour + '</span></div>';
-                        }}
-                        html += '<div class="meta" style="margin-top: 0.3rem;">Avg R' + bestDay.avg_price.toLocaleString() + '</div></div>';
-                    }});
-                    html += '</div>';
-                }}
+                html += '<h4 style="color: #e91e8c; margin: 1rem 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Current Prices for This Date</h4>';
+                routesInfo.forEach(r => {{
+                    const trendIcon = r.trend === 'dropping' ? '<span class="trend-down">▼ dropping</span>' :
+                                      r.trend === 'rising' ? '<span class="trend-up">▲ rising</span>' :
+                                      '<span class="trend-stable">─ stable</span>';
+                    const priceColor = r.current_price <= r.avg_price ? '#4caf50' : '#ff9800';
+                    html += '<div class="route-card">' +
+                        '<div><div class="route-name">' + r.route + '</div>' +
+                        '<div class="meta">Low: R' + r.lowest_seen.toLocaleString() + ' · High: R' + r.highest_seen.toLocaleString() + ' · ' + r.checks + ' checks · Trend: ' + trendIcon + '</div></div>' +
+                        '<div class="route-price" style="color:' + priceColor + '">R' + r.current_price.toLocaleString() + '</div></div>';
+                }});
 
                 resultsDiv.innerHTML = html;
             }} catch(e) {{
                 statusSpan.textContent = '';
-                resultsDiv.innerHTML = '<div class="advice-text">❌ Could not load advice. Make sure the server is running.</div>';
+                resultsDiv.innerHTML = '<div class="advice-text">❌ Could not load advice from Supabase.</div>';
             }}
         }}
 
@@ -1576,34 +1549,47 @@ def generate_dashboard(df, route_stats, output_dir):
             const modal = document.getElementById('priceModal');
             const body = document.getElementById('priceModalBody');
             modal.classList.add('active');
-            body.innerHTML = '<div style=\"text-align:center; color: #4fc3f7;\">Loading...</div>';
+            body.innerHTML = '<div style=\"text-align:center; color: #4fc3f7;\">Loading from Supabase...</div>';
 
             try {{
-                const res = await fetch(API_BASE + '/api/price-detail?route=' + encodeURIComponent(route) + '&type=' + type);
-                const data = await res.json();
+                // Fetch to find min or max price for route
+                const {{ data, error }} = await window.supabaseClient
+                    .from('flight_prices')
+                    .select('price, flight_date, scrape_datetime, days_before_flight')
+                    .eq('route', route)
+                    .order('price', {{ ascending: type === 'min' }})
+                    .limit(50);
+                    
+                if (error) throw error;
 
-                if (data.error) {{
-                    body.innerHTML = '<div style=\"color: #f44336;\">' + data.error + '</div>';
+                if (!data || data.length === 0) {{
+                    body.innerHTML = '<div style=\"color: #f44336;\">No data for this route</div>';
                     return;
                 }}
 
+                const targetPrice = data[0].price;
+                const records = data.filter(r => r.price === targetPrice).slice(0, 10); // show up to 10
+
                 const color = type === 'min' ? '#4caf50' : '#f44336';
                 const label = type === 'min' ? 'Lowest' : 'Highest';
-                let html = '<h3>' + label + ' Price for ' + data.route + '</h3>';
-                html += '<div style=\"font-size: 2rem; font-weight: 700; color:' + color + '; margin-bottom: 1rem;\">R' + data.price.toLocaleString() + '</div>';
-                html += '<div style=\"color: #888; font-size: 0.8rem; margin-bottom: 0.8rem;\">Found ' + data.occurrences + ' time(s) at this price</div>';
+                let html = '<h3>' + label + ' Price for ' + route + '</h3>';
+                html += '<div style=\"font-size: 2rem; font-weight: 700; color:' + color + '; margin-bottom: 1rem;\">R' + targetPrice.toLocaleString() + '</div>';
+                html += '<div style=\"color: #888; font-size: 0.8rem; margin-bottom: 0.8rem;\">Found ' + records.length + ' time(s) at this price (showing latest)</div>';
 
-                data.records.forEach(function(r) {{
+                records.forEach(function(r) {{
+                    const dt = new Date(r.flight_date);
+                    const dayName = dt.toLocaleString('default', {{ weekday: 'long' }});
+                    
                     html += '<div style=\"background: rgba(255,255,255,0.03); border-radius: 8px; padding: 0.6rem; margin-bottom: 0.5rem;\">';
-                    html += '<div class=\"detail-row\"><span class=\"detail-label\">Flight Date</span><span class=\"detail-value\">' + r.flight_day + ', ' + r.flight_date + '</span></div>';
-                    html += '<div class=\"detail-row\"><span class=\"detail-label\">Seen At</span><span class=\"detail-value\">' + r.scrape_time + '</span></div>';
-                    html += '<div class=\"detail-row\"><span class=\"detail-label\">Days Before Flight</span><span class=\"detail-value\">' + r.days_before + ' days</span></div>';
+                    html += '<div class=\"detail-row\"><span class=\"detail-label\">Flight Date</span><span class=\"detail-value\">' + dayName + ', ' + r.flight_date + '</span></div>';
+                    html += '<div class=\"detail-row\"><span class=\"detail-label\">Seen At</span><span class=\"detail-value\">' + new Date(r.scrape_datetime).toLocaleString() + '</span></div>';
+                    html += '<div class=\"detail-row\"><span class=\"detail-label\">Days Before Flight</span><span class=\"detail-value\">' + r.days_before_flight + ' days</span></div>';
                     html += '</div>';
                 }});
 
                 body.innerHTML = html;
             }} catch(e) {{
-                body.innerHTML = '<div style=\"color: #f44336;\">Could not load details.</div>';
+                body.innerHTML = '<div style=\"color: #f44336;\">Could not load details from Supabase.</div>';
             }}
         }}
 

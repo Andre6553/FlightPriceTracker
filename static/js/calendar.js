@@ -19,9 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initialization
     async function init() {
-        // Fetch available routes
-        const res = await fetch("/api/routes");
-        const routes = await res.json();
+        // Hardcode routes for the calendar widget
+        const routes = ["CPT-JNB", "GRJ-JNB", "JNB-CPT", "JNB-GRJ"];
 
         routes.forEach(route => {
             const opt = document.createElement("option");
@@ -61,14 +60,37 @@ document.addEventListener("DOMContentLoaded", () => {
         const monthTxt = month < 10 ? `0${month}` : month;
         const monthPrefix = `${year}-${monthTxt}`;
 
+        // Get the accurate last day of the month to prevent Postgres invalid date errors (e.g., April 31st)
+        const lastDay = new Date(year, month, 0).getDate();
+        const lastDayTxt = lastDay < 10 ? `0${lastDay}` : lastDay;
+
         currentMonthYear.textContent = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
         calendarGrid.innerHTML = "Loading data...";
 
         try {
-            const res = await fetch(`/api/calendar?route=${currentRoute}&month=${monthPrefix}`);
-            const data = await res.json();
+            // Use gte and lte instead of like for Postgres dates
+            const { data, error } = await window.supabaseClient
+                .from('flight_prices')
+                .select('flight_date, price, scrape_datetime')
+                .eq('route', currentRoute)
+                .gte('flight_date', `${monthPrefix}-01`)
+                .lte('flight_date', `${monthPrefix}-${lastDayTxt}`);
 
-            drawGrid(year, month, data);
+            if (error) throw error;
+
+            let latest = {};
+            data.forEach(r => {
+                if (!latest[r.flight_date] || r.scrape_datetime > latest[r.flight_date].scrape_datetime) {
+                    latest[r.flight_date] = r;
+                }
+            });
+
+            const calData = {};
+            for (const d in latest) {
+                calData[d] = latest[d].price;
+            }
+
+            drawGrid(year, month, calData);
         } catch (e) {
             calendarGrid.innerHTML = "Failed to load database. Is the scraper running?";
         }
@@ -140,8 +162,42 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            const res = await fetch(`/api/flights?route=${currentRoute}&date=${date}`);
-            const flights = await res.json();
+            const { data, error } = await window.supabaseClient
+                .from('flight_details')
+                .select('*')
+                .eq('route', currentRoute)
+                .eq('flight_date', date);
+
+            if (error) throw error;
+
+            let flightMap = {};
+            data.forEach(r => {
+                if (!flightMap[r.flight_number]) flightMap[r.flight_number] = [];
+                flightMap[r.flight_number].push(r);
+            });
+
+            let flights = [];
+            for (const fn in flightMap) {
+                const records = flightMap[fn];
+                records.sort((a, b) => a.scrape_datetime.localeCompare(b.scrape_datetime));
+                const first = records[0];
+                const latest = records[records.length - 1];
+                flights.push({
+                    flight_number: fn,
+                    departure_time: latest.departure_time,
+                    arrival_time: latest.arrival_time,
+                    latest_price: latest.price,
+                    is_special: latest.is_special,
+                    first_price: first.price,
+                    price_change: latest.price - first.price,
+                    scrape_datetime: latest.scrape_datetime
+                });
+            }
+
+            flights.sort((a, b) => {
+                if (a.latest_price !== b.latest_price) return a.latest_price - b.latest_price;
+                return a.departure_time.localeCompare(b.departure_time);
+            });
 
             flightsList.innerHTML = "";
 
@@ -191,8 +247,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadChart(date, flightNumber) {
         try {
-            const res = await fetch(`/api/flight-history?route=${currentRoute}&date=${date}&flight=${flightNumber}`);
-            const history = await res.json();
+            const { data, error } = await window.supabaseClient
+                .from('flight_details')
+                .select('scrape_datetime, price')
+                .eq('route', currentRoute)
+                .eq('flight_date', date)
+                .eq('flight_number', flightNumber)
+                .order('scrape_datetime', { ascending: true });
+
+            if (error) throw error;
+            const history = data.map(r => ({ x: r.scrape_datetime, y: r.price }));
 
             const ctx = document.getElementById("priceHistoryChart").getContext("2d");
 

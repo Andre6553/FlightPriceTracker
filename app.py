@@ -24,7 +24,7 @@ def index():
 @app.route("/calendar")
 def calendar():
     # Serve the interactive calendar UI module
-    return render_template("dashboard.html")
+    return send_from_directory(".", "calendar.html")
 
 @app.route("/api/routes")
 def get_routes():
