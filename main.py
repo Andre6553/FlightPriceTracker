@@ -76,6 +76,14 @@ def job(next_run_val=None):
     except Exception as e:
         print(f"Error during analysis: {e}")
         
+    # Sync data to Supabase
+    print("\n--- Syncing to Supabase ---")
+    import subprocess
+    try:
+        subprocess.run(["python", "sync_to_supabase.py"], check=True)
+    except Exception as e:
+        print(f"Error during Supabase sync: {e}")
+        
     set_status(False, duration=int(duration_seconds))
 
 if __name__ == "__main__":
