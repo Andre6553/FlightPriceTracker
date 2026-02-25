@@ -331,7 +331,6 @@ setInterval(function() {
 }, 50);
 """)
         print("  Generated Chart -> Hour Book")
-        chart_hour_book = "<div>Need more hourly data for booking hour chart.</div>"
 
     # ===== REPORT 4: Day of Week to BOOK =====
     print("\n" + "=" * 50)
@@ -406,7 +405,6 @@ setInterval(function() {
 }, 50);
 """)
         print("  Generated Chart -> Day Book")
-        chart_day_book = "<div>Need more daily data for booking day chart.</div>"
 
     # ===== REPORT 5: Price by Route =====
     print("\n" + "=" * 50)

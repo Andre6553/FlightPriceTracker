@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlySafair Price Tracker</title>
+    <!-- Use Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Chart.js for the modal graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = "https://opiscawovakabjpmzwte.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9waXNjYXdvdmFrYWJqcG16d3RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIwMTIyNTEsImV4cCI6MjA4NzU4ODI1MX0.yEZ1A5WR0SIA24YuyBjFB6SlRPdq9FE2IzfWqj5cCGU";
+        window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+
+<body>
+
+    <header class="app-header">
+        <div class="logo">
+            <span class="logo-icon">✈</span>
+            <h1>Flight Price Tracker</h1>
+        </div>
+        <div class="route-selector">
+            <label for="routeSelect">Route:</label>
+            <select id="routeSelect"></select>
+        </div>
+    </header>
+
+    <main class="calendar-container">
+
+        <div class="month-navigation">
+            <button id="prevMonth" class="nav-btn">&lsaquo;</button>
+            <h2 id="currentMonthYear">Loading...</h2>
+            <button id="nextMonth" class="nav-btn">&rsaquo;</button>
+        </div>
+
+        <div class="calendar-header">
+            <div>M</div>
+            <div>T</div>
+            <div>W</div>
+            <div>T</div>
+            <div>F</div>
+            <div>S</div>
+            <div>S</div>
+        </div>
+
+        <!-- The Grid -->
+        <div id="calendarGrid" class="calendar-grid">
+            <!-- Days injected via JS -->
+        </div>
+
+    </main>
+
+
+    <!-- Flight Details Modal -->
+    <div id="flightModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalDateTitle">Flight Details</h3>
+                <button id="closeModal" class="close-btn">&times;</button>
+            </div>
+
+            <div class="flights-list-container">
+                <div class="flights-list-header">
+                    <span>Flight</span>
+                    <span>Depart</span>
+                    <span>Arrive</span>
+                    <span>Price</span>
+                    <span>Trend</span>
+                </div>
+                <div id="flightsList" class="flights-list">
+                    <!-- Flights injected via JS -->
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h4>Price History Tracker</h4>
+                <canvas id="priceHistoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/calendar.js"></script>
+</body>
+
+</html>
