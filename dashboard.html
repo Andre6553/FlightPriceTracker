@@ -1101,6 +1101,7 @@
                         traces.push({
                             x: data.map(d => d.days_before),
                             y: data.map(d => d.price_change),
+                            customdata: data.map(d => [d.flight_date, d.departure_time]),
                             mode: 'markers', name: rt, type: 'scatter',
                             marker: {
                                 color: RC[rt] || '#888',
@@ -1108,7 +1109,7 @@
                                 opacity: 0.5,
                                 line: { width: 1, color: 'rgba(255,255,255,0.2)' }
                             },
-                            hovertemplate: '<b>%{name}</b><br>%{x} days before<br>Change: R%{y}<extra></extra>',
+                            hovertemplate: '<b>%{name}</b><br>Flight on %{customdata[0]} at %{customdata[1]}<br>%{x} days before<br>Change: R%{y}<extra></extra>',
                         });
                     }
                     // Add zero line

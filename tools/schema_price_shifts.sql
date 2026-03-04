@@ -4,6 +4,8 @@
 CREATE OR REPLACE VIEW vw_price_shifts AS
 SELECT 
     route,
+    flight_date,
+    departure_time,
     days_before_flight AS days_before,
     price_change,
     ABS(price_change) AS abs_change,
