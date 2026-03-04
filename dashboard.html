@@ -659,7 +659,7 @@
                 // Try loading price shifts view (may not exist yet)
                 let psData = [];
                 try {
-                    const psRes = await sb.from('vw_price_shifts').select('*').limit(2000);
+                    const psRes = await sb.from('vw_price_shifts').select('*').limit(5000);
                     if (psRes.data && !psRes.error) psData = psRes.data;
                 } catch (e) { }
 
@@ -898,24 +898,38 @@
                             mode: 'markers', name: rt, type: 'scatter',
                             marker: {
                                 color: RC[rt] || '#888',
-                                size: data.map(d => Math.min(20, Math.max(4, Math.abs(d.price_change) / 50))),
-                                opacity: .6,
+                                size: data.map(d => Math.min(45, Math.max(8, Math.abs(d.price_change) / 20))),
+                                opacity: 0.5,
+                                line: { width: 1, color: 'rgba(255,255,255,0.2)' }
                             },
-                            hovertemplate: '%{x} days before<br>Change: R%{y}<extra>' + rt + '</extra>',
+                            hovertemplate: '<b>%{name}</b><br>%{x} days before<br>Change: R%{y}<extra></extra>',
                         });
                     }
                     // Add zero line
                     traces.push({
-                        x: [0, Math.max(...psData.map(d => d.days_before))], y: [0, 0],
-                        mode: 'lines', line: { color: 'rgba(255,255,255,.3)', dash: 'dash', width: 1 },
+                        x: [-5, Math.max(...psData.map(d => d.days_before)) + 5], y: [0, 0],
+                        mode: 'lines+text',
+                        line: { color: 'rgba(255,255,255,0.3)', dash: 'dash', width: 1 },
+                        text: ['', 'No Change'],
+                        textposition: 'right middle',
                         showlegend: false, hoverinfo: 'skip',
                         name: 'No Change',
                     });
                     Plotly.newPlot('plotPriceShifts', traces, {
                         ...PLOTLY_DARK,
-                        title: { text: 'When Do Flights Change Price?', font: { size: 14 } },
-                        xaxis: { ...PLOTLY_DARK.xaxis, title: 'Days Before Flight When Shift Started', autorange: 'reversed' },
-                        yaxis: { ...PLOTLY_DARK.yaxis, title: 'Price Change (ZAR)' },
+                        title: { text: 'When Do Flights Change Price?', font: { size: 16 } },
+                        xaxis: {
+                            ...PLOTLY_DARK.xaxis,
+                            title: 'Days Before Flight When Shift Started',
+                            autorange: 'reversed',
+                            gridcolor: 'rgba(255,255,255,0.1)'
+                        },
+                        yaxis: {
+                            ...PLOTLY_DARK.yaxis,
+                            title: 'Price Change (ZAR)',
+                            gridcolor: 'rgba(255,255,255,0.1)'
+                        },
+                        hovermode: 'closest'
                     }, PLOTLY_CFG);
                 } else {
                     document.getElementById('plotPriceShifts').innerHTML =
