@@ -929,7 +929,13 @@
                             title: 'Price Change (ZAR)',
                             gridcolor: 'rgba(255,255,255,0.1)'
                         },
-                        hovermode: 'closest'
+                        legend: {
+                            orientation: 'v',
+                            x: 1.02,
+                            y: 1
+                        },
+                        hovermode: 'closest',
+                        autosize: true
                     }, PLOTLY_CFG);
                 } else {
                     document.getElementById('plotPriceShifts').innerHTML =
