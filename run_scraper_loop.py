@@ -69,12 +69,12 @@ def job(next_run_val=None):
     duration_seconds = end_time - start_time
     print(f"  -> Scrape completed in {duration_seconds:.1f} seconds")
 
-    # Generate updated reports
-    print("\n--- Generating Reports ---")
-    try:
-        run_analysis()
-    except Exception as e:
-        print(f"Error during analysis: {e}")
+    # Generate updated reports (Disabled: Dynamic dashboard now uses Supabase)
+    # print("\n--- Generating Reports ---")
+    # try:
+    #     run_analysis()
+    # except Exception as e:
+    #     print(f"Error during analysis: {e}")
         
     # Sync data to Supabase
     print("\n--- Syncing to Supabase ---")

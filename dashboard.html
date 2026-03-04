@@ -163,6 +163,113 @@
             color: var(--positive);
         }
 
+        /* Advisor Bar Styles */
+        .advisor-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1rem auto 1.5rem;
+            padding: 1rem 1.5rem;
+            background: var(--card-bg);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            max-width: 900px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .advisor-bar label {
+            color: var(--fs-blue);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .advisor-bar input[type="date"] {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .advisor-bar input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .advisor-results {
+            max-width: 900px;
+            margin: 0 auto 1.5rem;
+            background: var(--card-bg);
+            border: 1px solid rgba(79, 195, 247, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .advisor-results.visible {
+            display: block;
+        }
+
+        .advisor-results .advice-text {
+            background: rgba(79, 195, 247, 0.1);
+            border-left: 3px solid var(--fs-blue);
+            padding: 0.8rem 1rem;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .advisor-results .route-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .advisor-results .route-card:last-child {
+            border-bottom: none;
+        }
+
+        .advisor-results .route-name {
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .advisor-results .route-price {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .advisor-results .trend-up {
+            color: var(--negative);
+        }
+
+        .advisor-results .trend-down {
+            color: var(--positive);
+        }
+
+        .advisor-results .trend-stable {
+            color: #888;
+        }
+
+        .advisor-results .meta {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .advisor-loading {
+            text-align: center;
+            padding: 1rem;
+            color: var(--fs-blue);
+        }
+
         .charts {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -457,6 +564,14 @@
         <div class="timer-item"><button class="check-btn" onclick="location.reload()">🔄 Refresh Data</button></div>
     </div>
 
+    <!-- Advisor Bar -->
+    <div class="advisor-bar">
+        <label>✈ When do you want to fly?</label>
+        <input type="date" id="flightDatePicker" onchange="getFlightAdvice()">
+        <span id="advisorStatus" style="color: #888; font-size: 0.8rem; margin-left: 0.5rem;"></span>
+    </div>
+    <div class="advisor-results" id="advisorResults"></div>
+
     <div class="loading" id="mainLoading">
         <div class="spinner"></div>
         <div>Loading live data from Supabase...</div>
@@ -642,6 +757,97 @@
             }
             html += '</tbody></table>';
             return html;
+        }
+
+        // ===== FLIGHT ADVICE ADVISOR =====
+        async function getFlightAdvice() {
+            const dateInput = document.getElementById('flightDatePicker');
+            const statusSpan = document.getElementById('advisorStatus');
+            const resultsDiv = document.getElementById('advisorResults');
+            const selectedDate = dateInput.value;
+            if (!selectedDate) return;
+
+            statusSpan.textContent = '⏳ Analysing data...';
+            resultsDiv.className = 'advisor-results visible';
+            resultsDiv.innerHTML = '<div class="advisor-loading">Checking data for ' + selectedDate + '...</div>';
+
+            try {
+                const { data, error } = await sb
+                    .from('flight_prices')
+                    .select('route, price, scrape_datetime, days_before_flight')
+                    .eq('flight_date', selectedDate)
+                    .order('scrape_datetime');
+
+                if (error) throw error;
+                statusSpan.textContent = '';
+
+                if (!data || data.length === 0) {
+                    resultsDiv.innerHTML = '<div class="advice-text">❌ No exact data for this date yet. Check back later!</div>';
+                    return;
+                }
+
+                let route_prices = {};
+                data.forEach(r => {
+                    if (!route_prices[r.route]) route_prices[r.route] = [];
+                    route_prices[r.route].push(r);
+                });
+
+                let routesInfo = [];
+                for (const route in route_prices) {
+                    const entries = route_prices[route];
+                    const prices = entries.map(e => e.price);
+                    const latest = entries[entries.length - 1];
+                    const first = entries[0];
+                    let trend = "stable";
+                    if (prices.length > 1) {
+                        if (latest.price < first.price) trend = "dropping";
+                        else if (latest.price > first.price) trend = "rising";
+                    }
+                    routesInfo.push({
+                        route: route,
+                        current_price: latest.price,
+                        lowest_seen: Math.min(...prices),
+                        highest_seen: Math.max(...prices),
+                        avg_price: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length),
+                        checks: prices.length,
+                        trend: trend
+                    });
+                }
+
+                const flightDate = new Date(selectedDate);
+                const day_of_week = flightDate.toLocaleString('default', { weekday: 'long' });
+                const days_until = Math.floor((flightDate - new Date()) / (1000 * 60 * 60 * 24));
+
+                let advice = "You have " + days_until + " days left.";
+                if (days_until > 30) advice += " Plenty of time. Watch for price drops.";
+                else if (days_until > 14) advice += " Good window to book soon.";
+                else if (days_until > 7) advice += " Prices usually start rising now. Book this week.";
+                else advice += " Book NOW for the best remaining price.";
+
+                let html = '<h3 style="color: var(--fs-blue); margin-bottom: 0.8rem;">✈️ Flight Advice for ' +
+                    day_of_week + ', ' + selectedDate + '</h3>';
+                html += '<div style="color: #aaa; margin-bottom: 0.8rem; font-size: 0.85rem;">' +
+                    (days_until >= 0 ? '📅 ' + days_until + ' days from now' : '⚠️ This date has passed') + '</div>';
+                html += '<div class="advice-text">💡 ' + advice + '</div>';
+
+                html += '<h4 style="color: var(--fs-pink); margin: 1.5rem 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">Current Prices for This Date</h4>';
+                routesInfo.forEach(r => {
+                    const trendIcon = r.trend === 'dropping' ? '<span class="trend-down">▼ dropping</span>' :
+                        r.trend === 'rising' ? '<span class="trend-up">▲ rising</span>' :
+                            '<span class="trend-stable">─ stable</span>';
+                    const priceColor = r.current_price <= r.avg_price ? 'var(--positive)' : 'var(--fs-pink)';
+                    html += '<div class="route-card">' +
+                        '<div><div class="route-name">' + r.route + '</div>' +
+                        '<div class="meta">Low: R' + r.lowest_seen.toLocaleString() + ' · High: R' + r.highest_seen.toLocaleString() + ' · ' + r.checks + ' checks · Trend: ' + trendIcon + '</div></div>' +
+                        '<div class="route-price" style="color:' + priceColor + '">R' + r.current_price.toLocaleString() + '</div></div>';
+                });
+
+                resultsDiv.innerHTML = html;
+            } catch (e) {
+                console.error(e);
+                statusSpan.textContent = '';
+                resultsDiv.innerHTML = '<div class="advice-text">❌ Could not load advice from Supabase.</div>';
+            }
         }
 
         // ===== MAIN =====
