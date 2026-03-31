@@ -1,12 +1,12 @@
--- View: Price Shifts — tracks price changes between consecutive scrapes for the same flight
--- Run this in the Supabase SQL Editor
-
-CREATE OR REPLACE VIEW vw_price_shifts AS
+-- View: Price Shifts — added temporal flag
+DROP VIEW IF EXISTS vw_price_shifts;
+CREATE VIEW vw_price_shifts AS
 SELECT 
     route,
     flight_date,
     departure_time,
     days_before_flight AS days_before,
+    CASE WHEN flight_date >= CURRENT_DATE THEN 'Future' ELSE 'Past' END as period,
     price_change,
     ABS(price_change) AS abs_change,
     price

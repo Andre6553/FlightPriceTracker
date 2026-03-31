@@ -2,9 +2,11 @@ import asyncio
 from playwright.async_api import async_playwright
 
 async def test_flysafair_scrape():
+    import os
     async with async_playwright() as p:
-        # Launch visible browser for debugging
-        browser = await p.chromium.launch(headless=False)
+        # Check environment or default to true for Linux
+        is_headless = os.environ.get("HEADLESS", "True").lower() == "true"
+        browser = await p.chromium.launch(headless=is_headless)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
         )

@@ -1,0 +1,13 @@
+[Unit]
+Description=FlySafair Dashboard Server
+After=network.target
+
+[Service]
+User=andre
+WorkingDirectory=/home/andre/flysafair-scraper
+ExecStart=/home/andre/flysafair-scraper/venv/bin/python3 local_server.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

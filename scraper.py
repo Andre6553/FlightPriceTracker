@@ -7,6 +7,7 @@ import asyncio
 from playwright.async_api import async_playwright
 import time
 import re
+import os
 from datetime import datetime
 from db_manager import init_db, save_flight_price, save_flight_detail
 from pathlib import Path
@@ -497,8 +498,8 @@ async def run_scraper():
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,
-            args=['--disable-notifications']
+            headless=True,  # Forced for Linux server stability
+            args=['--disable-notifications', '--no-sandbox', '--disable-setuid-sandbox']
         )
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

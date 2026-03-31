@@ -1,0 +1,14 @@
+[Unit]
+Description=FlySafair Price Scraper Loop
+After=network.target flysafair-dashboard.service
+
+[Service]
+User=andre
+WorkingDirectory=/home/andre/flysafair-scraper
+ExecStart=/home/andre/flysafair-scraper/venv/bin/python3 run_scraper_loop.py
+Restart=always
+RestartSec=10
+Environment=HEADLESS=true
+
+[Install]
+WantedBy=multi-user.target
