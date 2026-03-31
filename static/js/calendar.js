@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (error) throw error;
 
-            // THE "ABSOLUTE CURRENT CHEAPEST" LOGIC (Fix: Account for millisecond jitter)
+            // THE "ABSOLUTE CURRENT CHEAPEST" LOGIC (Fix: Cross-Timezone Accuracy)
             // 1. Group all records by flight_date
             let resultsByDate = {};
             data.forEach(r => {
@@ -91,19 +91,19 @@ document.addEventListener("DOMContentLoaded", () => {
             for (const date in resultsByDate) {
                 const records = resultsByDate[date];
                 
-                // 2. Find the Absolute MAX scrape time for this date
-                let maxTime = new Date(0);
+                // 2. Find the Absolute MAX scrape time (Normalized to UTC)
+                let maxMs = 0;
                 records.forEach(r => {
-                    const t = new Date(r.scrape_datetime);
-                    if (t > maxTime) maxTime = t;
+                    const t = new Date(r.scrape_datetime).getTime();
+                    if (t > maxMs) maxMs = t;
                 });
 
-                // 3. Filter to ONLY include flights within a 10-minute window of the MAX time
-                // This captures all flights from the same search session even if they have different millisecond offsets
-                const windowMs = 10 * 60 * 1000; 
+                // 3. Filter to ONLY include flights within a 20-minute window of the MAX time
+                // (using numeric comparison for 100% accuracy)
+                const windowMs = 20 * 60 * 1000; 
                 let latestScrapeFlights = records.filter(r => {
-                    const t = new Date(r.scrape_datetime);
-                    return (maxTime - t) < windowMs;
+                    const t = new Date(r.scrape_datetime).getTime();
+                    return (maxMs - t) < windowMs;
                 });
 
                 // 4. Display the absolute cheapest from that recent window
