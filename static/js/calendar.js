@@ -68,51 +68,22 @@ document.addEventListener("DOMContentLoaded", () => {
         calendarGrid.innerHTML = "Loading data...";
 
         try {
-            // Use gte and lte instead of like for Postgres dates
+            // Use vw_calendar_prices view - returns 1 row per date with cheapest current price
+            // This avoids the Supabase 1000-row default limit that caused stale data
             const { data, error } = await window.supabaseClient
-                .from('flight_details')
-                .select('flight_date, flight_number, price, scrape_datetime')
+                .from('vw_calendar_prices')
+                .select('flight_date, cheapest_price')
                 .eq('route', currentRoute)
                 .gte('flight_date', `${monthPrefix}-01`)
-                .lte('flight_date', `${monthPrefix}-${lastDayTxt}`)
-                .order('scrape_datetime', { ascending: false });
+                .lte('flight_date', `${monthPrefix}-${lastDayTxt}`);
 
             if (error) throw error;
 
-            // THE "ABSOLUTE CURRENT CHEAPEST" LOGIC (Fix: Cross-Timezone Accuracy)
-            // 1. Group all records by flight_date
-            let resultsByDate = {};
+            // Simple mapping - the view already did all the heavy lifting
+            const calData = {};
             data.forEach(r => {
-                if (!resultsByDate[r.flight_date]) resultsByDate[r.flight_date] = [];
-                resultsByDate[r.flight_date].push(r);
+                calData[r.flight_date] = r.cheapest_price;
             });
-
-            let finalCalData = {};
-            for (const date in resultsByDate) {
-                const records = resultsByDate[date];
-                
-                // 1. Find the Absolute MAX scrape time for this specific date
-                let maxMs = 0;
-                records.forEach(r => {
-                    const t = new Date(r.scrape_datetime).getTime();
-                    if (t > maxMs) maxMs = t;
-                });
-
-                // 2. Only accept flights within a 15-minute window of that MAX time
-                // This ensures we are only looking at the very last search result
-                const windowMs = 15 * 60 * 1000; 
-                let latestScrapeFlights = records.filter(r => {
-                    const t = new Date(r.scrape_datetime).getTime();
-                    return (maxMs - t) < windowMs;
-                });
-
-                // 3. Take the MIN price from ONLY that latest window
-                if (latestScrapeFlights.length > 0) {
-                    finalCalData[date] = Math.min(...latestScrapeFlights.map(f => f.price));
-                }
-            }
-
-            const calData = finalCalData;
 
             drawGrid(year, month, calData);
         } catch (e) {
@@ -186,25 +157,34 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            // 1. Get ALL data for this day
+            // 1. Get the latest scrape time for this day
+            const { data: latestRow, error: err1 } = await window.supabaseClient
+                .from('flight_details')
+                .select('scrape_datetime')
+                .eq('route', currentRoute)
+                .eq('flight_date', date)
+                .order('scrape_datetime', { ascending: false })
+                .limit(1);
+
+            if (err1) throw err1;
+            if (!latestRow || latestRow.length === 0) {
+                flightsList.innerHTML = '<div class="loading-spinner">No data for this day.</div>';
+                return;
+            }
+
+            const latestScrapeTime = latestRow[0].scrape_datetime;
+
+            // 2. Get ALL flights from that exact latest scrape
             const { data, error } = await window.supabaseClient
                 .from('flight_details')
                 .select('*')
                 .eq('route', currentRoute)
-                .eq('flight_date', date);
+                .eq('flight_date', date)
+                .eq('scrape_datetime', latestScrapeTime);
 
             if (error) throw error;
 
-            // 2. Find the absolute LATEST scrape timestamp for this specific date
-            let maxScrapeTime = "";
-            data.forEach(r => {
-                if (r.scrape_datetime > maxScrapeTime) maxScrapeTime = r.scrape_datetime;
-            });
-
-            // 3. Filter to ONLY show flights from that latest scrape
-            let latestRecords = data.filter(r => r.scrape_datetime === maxScrapeTime);
-            
-            let flights = latestRecords.map(r => ({
+            let flights = data.map(r => ({
                 flight_number: r.flight_number,
                 departure_time: r.departure_time,
                 arrival_time: r.arrival_time,
