@@ -79,31 +79,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (error) throw error;
 
-            // THE "TRUE CURRENT CHEAPEST" LOGIC:
-            // 1. For each individual flight (FA 100, FA 200, etc.), find its latest known price.
-            // 2. Pick the absolute minimum of those latest prices for the day.
+            // THE "ABSOLUTE CURRENT CHEAPEST" LOGIC:
+            // 1. Find the absolute LATEST search timestamp we have for each date.
+            // 2. ONLY look at flights found in that specific latest search.
+            // 3. Pick the cheapest one from that list.
             
-            let latestPricesPerFlight = {}; // { "flight_date": { "flight_num": { price, time } } }
+            let latestScrapeTime = {};
+            let allLatestFlights = {}; // { "flight_date": [ {price} ] }
             
             data.forEach(r => {
                 const date = r.flight_date;
-                const fn = r.flight_number || 'unknown';
-                
-                if (!latestPricesPerFlight[date]) latestPricesPerFlight[date] = {};
-                
-                if (!latestPricesPerFlight[date][fn] || r.scrape_datetime > latestPricesPerFlight[date][fn].time) {
-                    latestPricesPerFlight[date][fn] = { price: r.price, time: r.scrape_datetime };
+                if (!latestScrapeTime[date] || r.scrape_datetime > latestScrapeTime[date]) {
+                    latestScrapeTime[date] = r.scrape_datetime;
+                    allLatestFlights[date] = [r];
+                } else if (r.scrape_datetime === latestScrapeTime[date]) {
+                    allLatestFlights[date].push(r);
                 }
             });
 
             let finalCalData = {};
-            for (const date in latestPricesPerFlight) {
-                const flights = latestPricesPerFlight[date];
-                let minForDay = Infinity;
-                for (const fn in flights) {
-                    if (flights[fn].price < minForDay) minForDay = flights[fn].price;
-                }
-                finalCalData[date] = minForDay;
+            for (const date in allLatestFlights) {
+                const flights = allLatestFlights[date];
+                finalCalData[date] = Math.min(...flights.map(f => f.price));
             }
 
             const calData = finalCalData;
