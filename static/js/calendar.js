@@ -78,17 +78,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (error) throw error;
 
-            let latest = {};
+            let latestTime = {};
+            let latestPrice = {};
+            
             data.forEach(r => {
-                if (!latest[r.flight_date] || r.scrape_datetime > latest[r.flight_date].scrape_datetime) {
-                    latest[r.flight_date] = r;
+                if (!latestTime[r.flight_date] || r.scrape_datetime > latestTime[r.flight_date]) {
+                    // Found a newer scrape, reset the time and price
+                    latestTime[r.flight_date] = r.scrape_datetime;
+                    latestPrice[r.flight_date] = r.price;
+                } else if (r.scrape_datetime === latestTime[r.flight_date]) {
+                    // Same scrape, keep the cheaper one
+                    if (r.price < latestPrice[r.flight_date]) {
+                        latestPrice[r.flight_date] = r.price;
+                    }
                 }
             });
 
-            const calData = {};
-            for (const d in latest) {
-                calData[d] = latest[d].price;
-            }
+            const calData = latestPrice;
 
             drawGrid(year, month, calData);
         } catch (e) {
