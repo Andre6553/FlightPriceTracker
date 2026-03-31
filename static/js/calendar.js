@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             // Use gte and lte instead of like for Postgres dates
             const { data, error } = await window.supabaseClient
-                .from('flight_prices')
+                .from('flight_details')
                 .select('flight_date, price, scrape_datetime')
                 .eq('route', currentRoute)
                 .gte('flight_date', `${monthPrefix}-01`)
