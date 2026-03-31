@@ -91,22 +91,22 @@ document.addEventListener("DOMContentLoaded", () => {
             for (const date in resultsByDate) {
                 const records = resultsByDate[date];
                 
-                // 2. Find the Absolute MAX scrape time (Normalized to UTC)
+                // 1. Find the Absolute MAX scrape time for this specific date
                 let maxMs = 0;
                 records.forEach(r => {
                     const t = new Date(r.scrape_datetime).getTime();
                     if (t > maxMs) maxMs = t;
                 });
 
-                // 3. Filter to ONLY include flights within a 20-minute window of the MAX time
-                // (using numeric comparison for 100% accuracy)
-                const windowMs = 20 * 60 * 1000; 
+                // 2. Only accept flights within a 15-minute window of that MAX time
+                // This ensures we are only looking at the very last search result
+                const windowMs = 15 * 60 * 1000; 
                 let latestScrapeFlights = records.filter(r => {
                     const t = new Date(r.scrape_datetime).getTime();
                     return (maxMs - t) < windowMs;
                 });
 
-                // 4. Display the absolute cheapest from that recent window
+                // 3. Take the MIN price from ONLY that latest window
                 if (latestScrapeFlights.length > 0) {
                     finalCalData[date] = Math.min(...latestScrapeFlights.map(f => f.price));
                 }
