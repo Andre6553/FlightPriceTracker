@@ -69,12 +69,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             // Use gte and lte instead of like for Postgres dates
+            // Widen the window to ensure we get the latest deep scrape results even if sync is staggered
             const { data, error } = await window.supabaseClient
                 .from('flight_details')
                 .select('flight_date, price, scrape_datetime')
                 .eq('route', currentRoute)
                 .gte('flight_date', `${monthPrefix}-01`)
-                .lte('flight_date', `${monthPrefix}-${lastDayTxt}`);
+                .lte('flight_date', `${monthPrefix}-${lastDayTxt}`)
+                .order('scrape_datetime', { ascending: false });
 
             if (error) throw error;
 
