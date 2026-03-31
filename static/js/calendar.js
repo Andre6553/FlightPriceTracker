@@ -69,10 +69,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             // Use gte and lte instead of like for Postgres dates
-            // Widen the window to ensure we get the latest deep scrape results even if sync is staggered
             const { data, error } = await window.supabaseClient
                 .from('flight_details')
-                .select('flight_date, price, scrape_datetime')
+                .select('flight_date, flight_number, price, scrape_datetime')
                 .eq('route', currentRoute)
                 .gte('flight_date', `${monthPrefix}-01`)
                 .lte('flight_date', `${monthPrefix}-${lastDayTxt}`)
@@ -80,23 +79,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (error) throw error;
 
-            let latestTime = {};
-            let latestPrice = {};
+            // THE "TRUE CURRENT CHEAPEST" LOGIC:
+            // 1. For each individual flight (FA 100, FA 200, etc.), find its latest known price.
+            // 2. Pick the absolute minimum of those latest prices for the day.
+            
+            let latestPricesPerFlight = {}; // { "flight_date": { "flight_num": { price, time } } }
             
             data.forEach(r => {
-                if (!latestTime[r.flight_date] || r.scrape_datetime > latestTime[r.flight_date]) {
-                    // Found a newer scrape, reset the time and price
-                    latestTime[r.flight_date] = r.scrape_datetime;
-                    latestPrice[r.flight_date] = r.price;
-                } else if (r.scrape_datetime === latestTime[r.flight_date]) {
-                    // Same scrape, keep the cheaper one
-                    if (r.price < latestPrice[r.flight_date]) {
-                        latestPrice[r.flight_date] = r.price;
-                    }
+                const date = r.flight_date;
+                const fn = r.flight_number || 'unknown';
+                
+                if (!latestPricesPerFlight[date]) latestPricesPerFlight[date] = {};
+                
+                if (!latestPricesPerFlight[date][fn] || r.scrape_datetime > latestPricesPerFlight[date][fn].time) {
+                    latestPricesPerFlight[date][fn] = { price: r.price, time: r.scrape_datetime };
                 }
             });
 
-            const calData = latestPrice;
+            let finalCalData = {};
+            for (const date in latestPricesPerFlight) {
+                const flights = latestPricesPerFlight[date];
+                let minForDay = Infinity;
+                for (const fn in flights) {
+                    if (flights[fn].price < minForDay) minForDay = flights[fn].price;
+                }
+                finalCalData[date] = minForDay;
+            }
+
+            const calData = finalCalData;
 
             drawGrid(year, month, calData);
         } catch (e) {
