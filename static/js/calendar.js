@@ -79,28 +79,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (error) throw error;
 
-            // THE "ABSOLUTE CURRENT CHEAPEST" LOGIC:
-            // 1. Find the absolute LATEST search timestamp we have for each date.
-            // 2. ONLY look at flights found in that specific latest search.
-            // 3. Pick the cheapest one from that list.
-            
-            let latestScrapeTime = {};
-            let allLatestFlights = {}; // { "flight_date": [ {price} ] }
-            
+            // THE "ABSOLUTE CURRENT CHEAPEST" LOGIC (Fix: Account for millisecond jitter)
+            // 1. Group all records by flight_date
+            let resultsByDate = {};
             data.forEach(r => {
-                const date = r.flight_date;
-                if (!latestScrapeTime[date] || r.scrape_datetime > latestScrapeTime[date]) {
-                    latestScrapeTime[date] = r.scrape_datetime;
-                    allLatestFlights[date] = [r];
-                } else if (r.scrape_datetime === latestScrapeTime[date]) {
-                    allLatestFlights[date].push(r);
-                }
+                if (!resultsByDate[r.flight_date]) resultsByDate[r.flight_date] = [];
+                resultsByDate[r.flight_date].push(r);
             });
 
             let finalCalData = {};
-            for (const date in allLatestFlights) {
-                const flights = allLatestFlights[date];
-                finalCalData[date] = Math.min(...flights.map(f => f.price));
+            for (const date in resultsByDate) {
+                const records = resultsByDate[date];
+                
+                // 2. Find the Absolute MAX scrape time for this date
+                let maxTime = new Date(0);
+                records.forEach(r => {
+                    const t = new Date(r.scrape_datetime);
+                    if (t > maxTime) maxTime = t;
+                });
+
+                // 3. Filter to ONLY include flights within a 10-minute window of the MAX time
+                // This captures all flights from the same search session even if they have different millisecond offsets
+                const windowMs = 10 * 60 * 1000; 
+                let latestScrapeFlights = records.filter(r => {
+                    const t = new Date(r.scrape_datetime);
+                    return (maxTime - t) < windowMs;
+                });
+
+                // 4. Display the absolute cheapest from that recent window
+                if (latestScrapeFlights.length > 0) {
+                    finalCalData[date] = Math.min(...latestScrapeFlights.map(f => f.price));
+                }
             }
 
             const calData = finalCalData;
