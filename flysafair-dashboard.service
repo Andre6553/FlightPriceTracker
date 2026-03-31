@@ -8,6 +8,7 @@ WorkingDirectory=/home/andre/flysafair-scraper
 ExecStart=/home/andre/flysafair-scraper/venv/bin/python3 local_server.py
 Restart=always
 RestartSec=5
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target

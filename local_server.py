@@ -140,6 +140,124 @@ def get_flight_history():
     
     return jsonify(history)
 
+@app.route("/api/route-summary")
+def get_route_summary():
+    """Returns Min, Max, Avg prices and target days for all routes."""
+    conn = get_db_connection()
+    
+    # Get general stats from flight_prices (Pass 1 data)
+    stats = conn.execute("""
+        SELECT 
+            route,
+            MIN(price) as min_price,
+            MAX(price) as max_price,
+            AVG(price) as avg_price,
+            COUNT(*) as total_points
+        FROM flight_prices
+        GROUP BY route
+    """).fetchall()
+    
+    results = []
+    for s in stats:
+        route = s["route"]
+        
+        # Find the best booking window (where prices are lowest on average)
+        # We'll use a simple version for the local dashboard
+        best_bw = conn.execute("""
+            SELECT days_before_flight, AVG(price) as avg_p
+            FROM flight_prices
+            WHERE route = ?
+            GROUP BY days_before_flight
+            ORDER BY avg_p ASC
+            LIMIT 1
+        """, (route,)).fetchone()
+        
+        # Find cheapest day of week to fly
+        best_df = conn.execute("""
+            SELECT 
+                CASE CAST(strftime('%w', flight_date) AS INTEGER)
+                    WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday'
+                    WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday'
+                    WHEN 5 THEN 'Friday' WHEN 6 THEN 'Saturday'
+                END as day_name,
+                AVG(price) as avg_p
+            FROM flight_prices
+            WHERE route = ?
+            GROUP BY day_name
+            ORDER BY avg_p ASC
+            LIMIT 1
+        """, (route,)).fetchone()
+
+        results.append({
+            "route": route,
+            "min_price": round(s["min_price"], 2),
+            "max_price": round(s["max_price"], 2),
+            "avg_price": round(s["avg_price"], 2),
+            "total_points": s["total_points"],
+            "best_bw": best_bw["days_before_flight"] if best_bw else "N/A",
+            "best_df": best_df["day_name"] if best_df else "N/A"
+        })
+        
+    conn.close()
+    return jsonify(results)
+
+@app.route("/api/route-stats")
+def get_route_stats():
+    """Returns broader stats for charts, filtered by period (Past/Future)."""
+    period = request.args.get("period", "all")
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    conn = get_db_connection()
+    
+    where_clause = ""
+    params = []
+    if period == "Future":
+        where_clause = "WHERE flight_date >= ?"
+        params = [today]
+    elif period == "Past":
+        where_clause = "WHERE flight_date < ?"
+        params = [today]
+        
+    query = f"""
+        SELECT 
+            route,
+            days_before_flight,
+            AVG(price) as avg_price,
+            MIN(price) as min_price,
+            COUNT(*) as data_points
+        FROM flight_prices
+        {where_clause}
+        GROUP BY route, days_before_flight
+        ORDER BY route, days_before_flight
+    """
+    
+    rows = conn.execute(query, params).fetchall()
+    
+    # Also get day-of-week stats
+    dow_query = f"""
+        SELECT 
+            route,
+            CASE CAST(strftime('%w', flight_date) AS INTEGER)
+                WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday'
+                WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday'
+                WHEN 5 THEN 'Friday' WHEN 6 THEN 'Saturday'
+            END as day_name,
+            CAST(strftime('%w', flight_date) AS INTEGER) as day_of_week_num,
+            AVG(price) as avg_price
+        FROM flight_prices
+        {where_clause}
+        GROUP BY route, day_name
+        ORDER BY route, day_of_week_num
+    """
+    dow_rows = conn.execute(dow_query, params).fetchall()
+    
+    conn.close()
+    
+    return jsonify({
+        "bw": [dict(r) for r in rows],
+        "df": [dict(r) for r in dow_rows]
+    })
+
 from flask import send_from_directory
 
 import json

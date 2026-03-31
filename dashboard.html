@@ -624,7 +624,7 @@
 
     <div class="loading" id="mainLoading">
         <div class="spinner"></div>
-        <div>Loading live data from Supabase...</div>
+        <div>Loading live data from Local Database...</div>
     </div>
 
     <div id="dashboardContent" style="display:none;">
@@ -822,47 +822,19 @@
             resultsDiv.innerHTML = '<div class="advisor-loading">Checking data for ' + selectedDate + '...</div>';
 
             try {
-                const { data, error } = await sb
-                    .from('flight_prices')
-                    .select('route, price, scrape_datetime, days_before_flight')
-                    .eq('flight_date', selectedDate)
-                    .order('scrape_datetime');
-
-                if (error) throw error;
+                // Try Local API first
+                const response = await fetch(`/api/flight-advice?date=${selectedDate}`);
+                if (!response.ok) throw new Error("Local API missing");
+                const data = await response.json();
+                
                 statusSpan.textContent = '';
 
-                if (!data || data.length === 0) {
+                if (!data || !data.has_data) {
                     resultsDiv.innerHTML = '<div class="advice-text">❌ No exact data for this date yet. Check back later!</div>';
                     return;
                 }
 
-                let route_prices = {};
-                data.forEach(r => {
-                    if (!route_prices[r.route]) route_prices[r.route] = [];
-                    route_prices[r.route].push(r);
-                });
-
-                let routesInfo = [];
-                for (const route in route_prices) {
-                    const entries = route_prices[route];
-                    const prices = entries.map(e => e.price);
-                    const latest = entries[entries.length - 1];
-                    const first = entries[0];
-                    let trend = "stable";
-                    if (prices.length > 1) {
-                        if (latest.price < first.price) trend = "dropping";
-                        else if (latest.price > first.price) trend = "rising";
-                    }
-                    routesInfo.push({
-                        route: route,
-                        current_price: latest.price,
-                        lowest_seen: Math.min(...prices),
-                        highest_seen: Math.max(...prices),
-                        avg_price: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length),
-                        checks: prices.length,
-                        trend: trend
-                    });
-                }
+                let routesInfo = data.routes;
 
                 const flightDate = new Date(selectedDate);
                 const day_of_week = flightDate.toLocaleString('default', { weekday: 'long' });
@@ -906,7 +878,43 @@
 
         async function loadDashboard() {
             try {
-                // Fetch all data in parallel
+                // Try Local API first (Live Mode)
+                const [summaryRes, statsRes, statusRes] = await Promise.all([
+                    fetch('/api/route-summary').then(r => r.json()),
+                    fetch('/api/route-stats?period=' + currentPeriod).then(r => r.json()),
+                    fetch('/api/status').then(r => r.json())
+                ]);
+
+                allData = {
+                    bw: statsRes.bw || [],
+                    df: statsRes.df || [],
+                    rs: summaryRes || [],
+                    hb: [], 
+                    db: [], 
+                    ps: []  
+                };
+
+                // Process Status metadata
+                if (statusRes) {
+                    const last = statusRes.last_run_iso ? new Date(statusRes.last_run_iso) : new Date();
+                    document.getElementById('lastScrape').textContent = last.toLocaleTimeString('en-GB');
+                    document.getElementById('totalChecks').textContent = (statusRes.total_checks || '...').toLocaleString();
+                    
+                    // Next check timer
+                    const next = statusRes.next_run_iso ? new Date(statusRes.next_run_iso) : new Date(Date.now() + 4500000);
+                    document.getElementById('nextCheckTime').textContent = next.toLocaleTimeString('en-GB');
+                    function tick() {
+                        const d = next - new Date();
+                        document.getElementById('nextCheck').textContent = d <= 0 ? 'NOW' : `${Math.floor(d / 60000)}:${String(Math.floor((d % 60000) / 1000)).padStart(2, '0')}`;
+                    }
+                    tick(); setInterval(tick, 1000);
+                }
+
+                initFilters();
+                renderAll();
+
+            } catch (err) {
+                console.warn('Local API failed, falling back to Supabase...', err);
                 const [metaRes, bwRes, dfRes, hbRes, dbRes, rsRes] = await Promise.all([
                     sb.from('vw_dashboard_meta').select('*').single(),
                     sb.from('vw_booking_window').select('*'),
@@ -924,20 +932,11 @@
                     rs: rsRes.data || []
                 };
 
-                // Try loading price shifts view (may not exist yet)
-                try {
-                    const psRes = await sb.from('vw_price_shifts').select('*').limit(5000);
-                    if (psRes.data && !psRes.error) allData.ps = psRes.data;
-                } catch (e) { allData.ps = []; }
-
-                // Process Metadata
                 const meta = metaRes.data;
                 if (meta) {
                     const last = new Date(meta.last_scrape);
                     document.getElementById('lastScrape').textContent = last.toLocaleTimeString('en-GB');
                     document.getElementById('totalChecks').textContent = meta.total_checks.toLocaleString();
-                    
-                    // Next check timer (Every 1.5 hours)
                     const next = new Date(last.getTime() + 1.5 * 3600000);
                     document.getElementById('nextCheckTime').textContent = next.toLocaleTimeString('en-GB');
                     function tick() {
@@ -946,16 +945,8 @@
                     }
                     tick(); setInterval(tick, 1000);
                 }
-
-                // Initial UI setup
                 initFilters();
                 renderAll();
-
-            } catch (err) {
-                console.error('Dashboard load error:', err);
-                document.getElementById('mainLoading').innerHTML =
-                    `<div style="color:var(--negative);">❌ Failed to load data: ${err.message}<br><br>
-            <button class="check-btn" onclick="location.reload()">Retry</button></div>`;
             }
         }
 
@@ -1244,7 +1235,7 @@
             document.getElementById('mainLoading').style.display = 'none';
             document.getElementById('dashboardContent').style.display = 'block';
             document.getElementById('updatedText').textContent =
-                `Data loaded live from Supabase • ${new Date().toLocaleString()} • Filtered: ${currentPeriod === 'all' ? 'All Data' : currentPeriod + ' Flights Only'}`;
+                `Data loaded LIVE from Local Linux PC • ${new Date().toLocaleString()} • Filtered: ${currentPeriod === 'all' ? 'All Data' : currentPeriod + ' Flights Only'}`;
 
         }
 

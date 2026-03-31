@@ -9,6 +9,7 @@ ExecStart=/home/andre/flysafair-scraper/venv/bin/python3 run_scraper_loop.py
 Restart=always
 RestartSec=10
 Environment=HEADLESS=true
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target

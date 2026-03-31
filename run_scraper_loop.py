@@ -27,6 +27,8 @@ def set_status(is_running, duration=None, next_run=None):
         status_data["running"] = is_running
         if duration is not None:
             status_data["last_duration_seconds"] = duration
+            status_data["last_run_iso"] = datetime.now().isoformat()
+            status_data["total_checks"] = status_data.get("total_checks", 0) + 1
         if next_run is not None:
             status_data["next_run_iso"] = next_run.isoformat()
             

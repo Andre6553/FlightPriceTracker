@@ -68,26 +68,14 @@ document.addEventListener("DOMContentLoaded", () => {
         calendarGrid.innerHTML = "Loading data...";
 
         try {
-            // Use vw_calendar_prices view - returns 1 row per date with cheapest current price
-            // This avoids the Supabase 1000-row default limit that caused stale data
-            const { data, error } = await window.supabaseClient
-                .from('vw_calendar_prices')
-                .select('flight_date, cheapest_price')
-                .eq('route', currentRoute)
-                .gte('flight_date', `${monthPrefix}-01`)
-                .lte('flight_date', `${monthPrefix}-${lastDayTxt}`);
-
-            if (error) throw error;
-
-            // Simple mapping - the view already did all the heavy lifting
-            const calData = {};
-            data.forEach(r => {
-                calData[r.flight_date] = r.cheapest_price;
-            });
+            // Use Local API instead of Supabase to show LIVE data from the Linux PC
+            const response = await fetch(`/api/calendar?route=${currentRoute}&month=${monthPrefix}`);
+            if (!response.ok) throw new Error("API Error");
+            const calData = await response.json();
 
             drawGrid(year, month, calData);
         } catch (e) {
-            calendarGrid.innerHTML = "Failed to load database. Is the scraper running?";
+            calendarGrid.innerHTML = "Failed to load local database. Is the scraper running?";
         }
     }
 
@@ -157,46 +145,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            // 1. Get the latest scrape time for this day
-            const { data: latestRow, error: err1 } = await window.supabaseClient
-                .from('flight_details')
-                .select('scrape_datetime')
-                .eq('route', currentRoute)
-                .eq('flight_date', date)
-                .order('scrape_datetime', { ascending: false })
-                .limit(1);
-
-            if (err1) throw err1;
-            if (!latestRow || latestRow.length === 0) {
-                flightsList.innerHTML = '<div class="loading-spinner">No data for this day.</div>';
-                return;
-            }
-
-            const latestScrapeTime = latestRow[0].scrape_datetime;
-
-            // 2. Get ALL flights from that exact latest scrape
-            const { data, error } = await window.supabaseClient
-                .from('flight_details')
-                .select('*')
-                .eq('route', currentRoute)
-                .eq('flight_date', date)
-                .eq('scrape_datetime', latestScrapeTime);
-
-            if (error) throw error;
-
-            let flights = data.map(r => ({
-                flight_number: r.flight_number,
-                departure_time: r.departure_time,
-                arrival_time: r.arrival_time,
-                latest_price: r.price,
-                is_special: r.is_special,
-                scrape_datetime: r.scrape_datetime
-            }));
-
-            flights.sort((a, b) => {
-                if (a.latest_price !== b.latest_price) return a.latest_price - b.latest_price;
-                return a.departure_time.localeCompare(b.departure_time);
-            });
+            // Fetch flights from local API
+            const response = await fetch(`/api/flights?route=${currentRoute}&date=${date}`);
+            if (!response.ok) throw new Error("API Error");
+            const flights = await response.json();
 
             flightsList.innerHTML = "";
 
@@ -246,16 +198,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadChart(date, flightNumber) {
         try {
-            const { data, error } = await window.supabaseClient
-                .from('flight_details')
-                .select('scrape_datetime, price')
-                .eq('route', currentRoute)
-                .eq('flight_date', date)
-                .eq('flight_number', flightNumber)
-                .order('scrape_datetime', { ascending: true });
-
-            if (error) throw error;
-            const history = data.map(r => ({ x: r.scrape_datetime, y: r.price }));
+            const response = await fetch(`/api/flight-history?route=${currentRoute}&date=${date}&flight=${flightNumber}`);
+            if (!response.ok) throw new Error("API Error");
+            const history = await response.json();
 
             const ctx = document.getElementById("priceHistoryChart").getContext("2d");
 
