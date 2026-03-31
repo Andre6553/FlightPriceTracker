@@ -177,6 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
+            // 1. Get ALL data for this day
             const { data, error } = await window.supabaseClient
                 .from('flight_details')
                 .select('*')
@@ -185,29 +186,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (error) throw error;
 
-            let flightMap = {};
+            // 2. Find the absolute LATEST scrape timestamp for this specific date
+            let maxScrapeTime = "";
             data.forEach(r => {
-                if (!flightMap[r.flight_number]) flightMap[r.flight_number] = [];
-                flightMap[r.flight_number].push(r);
+                if (r.scrape_datetime > maxScrapeTime) maxScrapeTime = r.scrape_datetime;
             });
 
-            let flights = [];
-            for (const fn in flightMap) {
-                const records = flightMap[fn];
-                records.sort((a, b) => a.scrape_datetime.localeCompare(b.scrape_datetime));
-                const first = records[0];
-                const latest = records[records.length - 1];
-                flights.push({
-                    flight_number: fn,
-                    departure_time: latest.departure_time,
-                    arrival_time: latest.arrival_time,
-                    latest_price: latest.price,
-                    is_special: latest.is_special,
-                    first_price: first.price,
-                    price_change: latest.price - first.price,
-                    scrape_datetime: latest.scrape_datetime
-                });
-            }
+            // 3. Filter to ONLY show flights from that latest scrape
+            let latestRecords = data.filter(r => r.scrape_datetime === maxScrapeTime);
+            
+            let flights = latestRecords.map(r => ({
+                flight_number: r.flight_number,
+                departure_time: r.departure_time,
+                arrival_time: r.arrival_time,
+                latest_price: r.price,
+                is_special: r.is_special,
+                scrape_datetime: r.scrape_datetime
+            }));
 
             flights.sort((a, b) => {
                 if (a.latest_price !== b.latest_price) return a.latest_price - b.latest_price;
